@@ -64,9 +64,11 @@ public class Kali {
 	 * @param source is the one liner string of all the code.
 	 */
 	private static void run(String source){
+		//Tokenize every code into its corresponding type
 		Scanner scanner = new Scanner(source);
 		List<Token> tokens = scanner.scanTokens();
 
+		//for each token parse into a list of statements
 		Parser parser = new Parser(tokens);
     List<Stmt> statements = parser.parse();
 

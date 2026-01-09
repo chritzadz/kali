@@ -60,7 +60,7 @@ public class Scanner {
   }
 
   /**
-   * 
+   * whether the current is at the end or not
    * @return boolean expression of the current pointer should before the length.
    */
   private boolean isAtEnd() {

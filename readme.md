@@ -8,3 +8,6 @@ Kali is actually taken from one of the 5 largest island in Indonesia - Kalimanta
 To run the code, use the following command:
 javac kali/Scanner.java && java kali.Kali <path-file>
 javac kali/Scanner.java && java kali.Kali test.txt
+
+AST generation
+java tool/GenerateAst.java kali
