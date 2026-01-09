@@ -1,4 +1,4 @@
-package lox;
+package kali;
 
 public enum TokenType {
     //Single-character token

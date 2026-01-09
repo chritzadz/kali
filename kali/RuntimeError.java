@@ -1,4 +1,4 @@
-package lox;
+package kali;
 
 class RuntimeError extends RuntimeException {
   final Token token;

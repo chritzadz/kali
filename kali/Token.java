@@ -1,4 +1,4 @@
-package lox;
+package kali;
 
 public class Token {
     final TokenType type;

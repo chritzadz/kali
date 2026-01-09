@@ -1,4 +1,4 @@
-package lox;
+package kali;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -137,7 +137,7 @@ public class Scanner {
           identifier();
         }
         else{
-          Lox.error(line, "Unexpected character.");
+          Kali.error(line, "Unexpected character.");
         }
         break;
     }
@@ -223,7 +223,7 @@ public class Scanner {
 
     if (isAtEnd()){
       //invalid string
-      Lox.error(line, "Unterminated string.");
+      Kali.error(line, "Unterminated string.");
       return;
     }
 

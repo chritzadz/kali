@@ -1,4 +1,4 @@
-package lox;
+package kali;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -106,7 +106,7 @@ public class Parser {
   }
 
 	private ParseError error(Token token, String message) {
-    Lox.error(token, message);
+    Kali.error(token, message);
     return new ParseError();
   }
 

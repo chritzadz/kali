@@ -1,4 +1,4 @@
-package lox;
+package kali;
 
 import java.util.List;
 
@@ -32,7 +32,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         execute(statement);
       }
     } catch (RuntimeError error) {
-      Lox.runtimeError(error);
+      Kali.runtimeError(error);
     }
   }
 

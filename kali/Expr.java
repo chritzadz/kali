@@ -1,6 +1,6 @@
-package lox;
+package kali;
 
-import lox.Token;
+import kali.Token;
 
 abstract class Expr {
   interface Visitor<R> {

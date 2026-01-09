@@ -1,4 +1,4 @@
-package lox;
+package kali;
 
 class AstPrinter implements Expr.Visitor<String> {
   String print(Expr expr) {

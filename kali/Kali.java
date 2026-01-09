@@ -1,4 +1,4 @@
-package lox;
+package kali;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -8,7 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 
-public class Lox {
+public class Kali {
 	static boolean hadError = false;
 	static boolean hadRuntimeError = false;
 	private static final Interpreter interpreter = new Interpreter();
