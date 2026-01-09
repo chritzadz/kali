@@ -1,0 +1,1 @@
+javac lox/Scanner.java && java lox.Lox test.txt
