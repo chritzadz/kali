@@ -102,13 +102,10 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
 
     switch (expr.operator.type) {
       case GREATER:
-        return DataType.BOOLEAN;
       case GREATER_EQUAL:
-        return DataType.BOOLEAN;
       case LESS:
-        return DataType.BOOLEAN;
       case LESS_EQUAL:
-        return DataType.BOOLEAN;
+        return checkSameOperands(expr.operator, left, right);
       case MINUS:
         return checkNumberOperands(expr.operator, left, right);
       case SLASH:
@@ -191,6 +188,13 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     throw new CompilationError(operator, "Operand must be a number.");
   }
 
+  private Object checkSameOperands(Token operator, Object left, Object right) throws CompilationError {
+    if (left == DataType.NUMBER && right == DataType.NUMBER) return DataType.BOOLEAN;
+    if (left == DataType.STRING && right == DataType.STRING) return DataType.BOOLEAN;
+    if (left == DataType.BOOLEAN && right == DataType.BOOLEAN) return DataType.BOOLEAN;
+    throw new CompilationError(operator, "Operands must be the same type.");
+  }
+
   private Object checkNumberOperands(Token operator, Object left, Object right) throws CompilationError {
     if (left == DataType.NUMBER && right == DataType.NUMBER) return DataType.NUMBER;
     throw new CompilationError(operator, "Operands must be numbers.");
@@ -207,7 +211,7 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     else if (left == DataType.NUMBER && right == DataType.NUMBER){
       return DataType.NUMBER;
     }
-    throw new CompilationError(operator, "Operands must be strings.");
+    throw new CompilationError(operator, "Both operands must be strings or numbers");
   }
 
   private Object checkStringOrNumberOperands(Token operator, Object left, Object right) throws CompilationError {
@@ -222,7 +226,7 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     else if (right == DataType.NUMBER && left == DataType.STRING){
       return DataType.STRING;
     }
-    throw new CompilationError(operator, "Operands must be strings.");
+    throw new CompilationError(operator, "Operands must be strings or numbers");
   }
 
   void executeBlock(List<Stmt> statements, Environment environment) {

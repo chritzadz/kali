@@ -1,2 +1,1 @@
-string var = "hello";
-print 2 * var;
+print "hello" > "test";

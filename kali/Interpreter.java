@@ -72,17 +72,57 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     switch (expr.operator.type) {
       case GREATER:
-        checkNumberOperands(expr.operator, left, right);
-        return (double)left > (double)right;
+        checkSameOperands(expr.operator, left, right);
+        if (left instanceof Double && right instanceof Double){
+          return (double)left > (double)right;
+        }
+        else if (left instanceof String && right instanceof String){
+          return ((String)left).length() > ((String)right).length();
+        }
+        else {
+          int leftVal = (Boolean) left ? 1 : 0;
+          int rightVal = (Boolean) right ? 1 : 0;
+          return leftVal > rightVal;
+        }
       case GREATER_EQUAL:
-        checkNumberOperands(expr.operator, left, right);
-        return (double)left >= (double)right;
+        checkSameOperands(expr.operator, left, right);
+        if (left instanceof Double && right instanceof Double){
+          return (double)left >= (double)right;
+        }
+        else if (left instanceof String && right instanceof String){
+          return ((String)left).length() >= ((String)right).length();
+        }
+        else {
+          int leftVal = (Boolean) left ? 1 : 0;
+          int rightVal = (Boolean) right ? 1 : 0;
+          return leftVal >= rightVal;
+        }
       case LESS:
-        checkNumberOperands(expr.operator, left, right);
-        return (double)left < (double)right;
+        checkSameOperands(expr.operator, left, right);
+        if (left instanceof Double && right instanceof Double){
+          return (double)left < (double)right;
+        }
+        else if (left instanceof String && right instanceof String){
+          return ((String)left).length() < ((String)right).length();
+        }
+        else {
+          int leftVal = (Boolean) left ? 1 : 0;
+          int rightVal = (Boolean) right ? 1 : 0;
+          return leftVal < rightVal;
+        }
       case LESS_EQUAL:
-        checkNumberOperands(expr.operator, left, right);
-        return (double)left <= (double)right;
+        checkSameOperands(expr.operator, left, right);
+        if (left instanceof Double && right instanceof Double){
+          return (double)left <= (double)right;
+        }
+        else if (left instanceof String && right instanceof String){
+          return ((String)left).length() <= ((String)right).length();
+        }
+        else {
+          int leftVal = (Boolean) left ? 1 : 0;
+          int rightVal = (Boolean) right ? 1 : 0;
+          return leftVal <= rightVal;
+        }
       case MINUS:
         checkNumberOperands(expr.operator, left, right);
         return (double)left - (double)right;
@@ -90,9 +130,11 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         if (left instanceof Double && right instanceof Double) {
           return (double)left + (double)right;
         }
-
         if (left instanceof String && right instanceof String) {
           return (String)left + (String)right;
+        }
+        if (left instanceof String && right instanceof Double) {
+
         }
 
         throw new RuntimeError(expr.operator,"Operands must be two numbers or two strings.");
@@ -244,6 +286,13 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
   private void checkNumberOperands(Token operator, Object left, Object right) {
     if (left instanceof Double && right instanceof Double) return;
     throw new RuntimeError(operator, "Operands must be numbers.");
+  }
+
+  private void checkSameOperands(Token operator, Object left, Object right) {
+    if (left instanceof Double && right instanceof Double) return;
+    if (left instanceof String && right instanceof String) return;
+    if (left instanceof Boolean && right instanceof Boolean) return;
+    throw new RuntimeError(operator, "Operands must be the same typoe.");
   }
 
   private void checkStarOperands(Token operator, Object left, Object right) {
