@@ -21,6 +21,8 @@ public class Parser {
     return statements;
   }
 
+  // --- Statements ---
+
   private Stmt declaration() {
     try {
       if (match(TokenType.VAR)) return varDeclaration();
@@ -52,12 +54,6 @@ public class Parser {
     return expressionStatement();
   }
 
-  private Stmt printStatement() {
-    Expr value = expression();
-    consume(TokenType.SEMICOLON, "Expect ';' after value.");
-    return new Stmt.Print(value);
-  }
-
   private Stmt ifStatement(){
     consume(TokenType.LEFT_PAREN, "Expect '(' after 'if'.");
     Expr condition = expression();
@@ -71,7 +67,13 @@ public class Parser {
     }
 
     return new Stmt.If(condition, thenBranch, elseBranch);
-  };
+  }
+
+  private Stmt printStatement() {
+    Expr value = expression();
+    consume(TokenType.SEMICOLON, "Expect ';' after value.");
+    return new Stmt.Print(value);
+  }
 
   private Stmt expressionStatement() {
     Expr expr = expression();
@@ -89,6 +91,8 @@ public class Parser {
     consume(TokenType.RIGHT_BRACE, "Expect '}' after block.");
     return statements;
   }
+
+  // --- Expressions ---
 
   private Expr expression() {
     return assignment();
@@ -160,13 +164,20 @@ public class Parser {
   }
 
   private Expr unary() {
-    if (match(TokenType.BANG, TokenType.MINUS)) {
+    if (match(TokenType.BANG, TokenType.MINUS, TokenType.DOUBLE_PLUS, TokenType.DOUBLE_MINUS)) {
       Token operator = previous();
       Expr right = unary();
       return new Expr.Unary(operator, right);
     }
 
-    return primary();
+    Expr expr = primary();
+
+    if (match(TokenType.DOUBLE_PLUS, TokenType.DOUBLE_MINUS)) {
+      Token operator = previous();
+      return new Expr.UnaryPost(expr, operator); //we count this as special Unary where the operator comes after an expression
+    }
+
+    return expr;
   }
 
   private Expr primary() {
@@ -190,6 +201,8 @@ public class Parser {
 
     throw error(peek(), "Expect expression.");
   }
+
+  // --- Helpers ---
 
   private void synchronize() {
     advance();
