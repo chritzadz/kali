@@ -29,6 +29,11 @@ class AstPrinter implements Expr.Visitor<String> {
     return parenthesize(expr.operator.lexeme, expr.right);
   }
 
+  @Override
+  public String visitUnaryPostExpr(Expr.UnaryPost expr) {
+    return parenthesize(expr.operator.lexeme, expr.left);
+  }
+
 	private String parenthesize(String name, Expr... exprs) {
     StringBuilder builder = new StringBuilder();
 
@@ -56,16 +61,13 @@ class AstPrinter implements Expr.Visitor<String> {
 
   @Override
   public String visitAssignExpr(Assign expr) {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("Unimplemented method 'visitAssignExpr'");
+    return parenthesize("= " + expr.name.lexeme, expr.value);
   }
 
   @Override
   public String visitVariableExpr(Variable expr) {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("Unimplemented method 'visitVariableExpr'");
+    return expr.name.lexeme;
   }
-
 }
 
 

@@ -11,7 +11,9 @@ import java.util.List;
 public class Kali {
 	static boolean hadError = false;
 	static boolean hadRuntimeError = false;
+	static boolean hadCompilationError = false;
 	private static final Interpreter interpreter = new Interpreter();
+	private static final TypeChecker typeChecker = new TypeChecker();
 
 
 	/**
@@ -39,6 +41,7 @@ public class Kali {
 		run(new String(bytes, Charset.defaultCharset()));
 		if (hadError) System.exit(65);
 		if (hadRuntimeError) System.exit(70);
+		if (hadCompilationError) System.exit(70);
 	}
 
 	/**
@@ -58,7 +61,7 @@ public class Kali {
 	}
 
 	/**
-	 * First scanner will act to iterate thruogh the source string (code)
+	 * First scanner will act to iterate through the source string (code)
 	 * Tokenize all of the code by the user with the Scanner class. and then calling scanToken()
 	 * After being able to tokenize, parse using the Parse class to get an Expression of the whole code.
 	 * @param source is the one liner string of all the code.
@@ -73,6 +76,8 @@ public class Kali {
     List<Stmt> statements = parser.parse();
 
     if (hadError) return;
+		typeChecker.check(statements);
+		if (hadCompilationError) return;
 		interpreter.interpret(statements);
 	}
 
@@ -89,9 +94,13 @@ public class Kali {
   }
 
 	static void runtimeError(RuntimeError error) {
-    System.err.println(error.getMessage() +
-        "\n[line " + error.token.line + "]");
+    System.err.println(error.getMessage() + "\n[line " + error.token.line + "]");
     hadRuntimeError = true;
+  }
+
+	static void compilationError(CompilationError error) {
+    System.err.println(error.getMessage() + "\n[line " + error.token.line + "]");
+    hadCompilationError = true;
   }
 
 	private static void report(int line, String where, String message) {

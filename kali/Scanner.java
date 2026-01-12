@@ -32,8 +32,11 @@ public class Scanner {
     keywords.put("super",  TokenType.SUPER);
     keywords.put("this",   TokenType.THIS);
     keywords.put("true",   TokenType.TRUE);
-    keywords.put("var",    TokenType.VAR);
     keywords.put("while",  TokenType.WHILE);
+    keywords.put("string", TokenType.TYPE_STRING);
+    keywords.put("number", TokenType.TYPE_NUMBER);
+    keywords.put("boolean", TokenType.TYPE_BOOLEAN);
+    // keywords.put("void", TokenType.VOID); // Void might be useful later, but sticking to requested types.
   }
 
   public Scanner(String source) {
@@ -45,7 +48,7 @@ public class Scanner {
    * 1. start -> start of the pointer
    * 2. current -> current position of the pointer
    * 3. line -> how many lines
-   * 
+   *
    * will call the scanToken() to evaluate,
    * @return
    */
@@ -94,10 +97,14 @@ public class Scanner {
       case '}': addToken(TokenType.RIGHT_BRACE); break;
       case ',': addToken(TokenType.COMMA); break;
       case '.': addToken(TokenType.DOT); break;
-      case '-': addToken(TokenType.MINUS); break;
-      case '+': addToken(TokenType.PLUS); break;
       case ';': addToken(TokenType.SEMICOLON); break;
-      case '*': addToken(TokenType.STAR); break; 
+      case '*': addToken(TokenType.STAR); break;
+      case '-':
+        addToken(match('-') ? TokenType.DOUBLE_MINUS : TokenType.MINUS);
+        break;
+      case '+':
+        addToken(match('+') ? TokenType.DOUBLE_PLUS : TokenType.PLUS);
+        break;
       case '!':
         addToken(match('=') ? TokenType.BANG_EQUAL : TokenType.BANG);
         break;
