@@ -114,7 +114,7 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
       case SLASH:
         return checkNumberOperands(expr.operator, left, right);
       case STAR:
-        return checkNumberOperands(expr.operator, left, right);
+        return checkStringOrNumberOperands(expr.operator, left, right);
       case PLUS:
         return checkStringNumberOperands(expr.operator, left, right);
       case BANG_EQUAL:
@@ -206,6 +206,21 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
       return DataType.STRING;
     else if (left == DataType.NUMBER && right == DataType.NUMBER){
       return DataType.NUMBER;
+    }
+    throw new CompilationError(operator, "Operands must be strings.");
+  }
+
+  private Object checkStringOrNumberOperands(Token operator, Object left, Object right) throws CompilationError {
+    if (left == DataType.STRING && right == DataType.STRING)
+      return DataType.STRING;
+    else if (left == DataType.NUMBER && right == DataType.NUMBER){
+      return DataType.NUMBER;
+    }
+    else if (left == DataType.NUMBER && right == DataType.STRING){
+      return DataType.STRING;
+    }
+    else if (right == DataType.NUMBER && left == DataType.STRING){
+      return DataType.STRING;
     }
     throw new CompilationError(operator, "Operands must be strings.");
   }

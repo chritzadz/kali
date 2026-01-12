@@ -100,8 +100,27 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         checkNumberOperands(expr.operator, left, right);
         return (double)left / (double)right;
       case STAR:
-        checkNumberOperands(expr.operator, left, right);
-        return (double)left * (double)right;
+        checkStarOperands(expr.operator, left, right);
+        if (left instanceof Double) {
+          if (right instanceof Double) {
+            return (double)left * (double)right;
+          } else if (right instanceof String){
+            StringBuilder sb = new StringBuilder();
+            int times = ((Double) left).intValue();
+            for (int i = 0; i < times; i++) {
+              sb.append((String) right);
+            }
+            return sb.toString();
+          }
+        } else if (right instanceof Double) {
+          StringBuilder sb = new StringBuilder();
+          int times = ((Double) right).intValue();
+          for (int i = 0; i < times; i++) {
+            sb.append((String) left);
+          }
+          return sb.toString();
+        }
+        
       case BANG_EQUAL: return !isEqual(left, right);
       case EQUAL_EQUAL: return isEqual(left, right);
     }
@@ -224,6 +243,13 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
   private void checkNumberOperands(Token operator, Object left, Object right) {
     if (left instanceof Double && right instanceof Double) return;
+    throw new RuntimeError(operator, "Operands must be numbers.");
+  }
+
+  private void checkStarOperands(Token operator, Object left, Object right) {
+    if (left instanceof Double && right instanceof Double) return;
+    else if (left instanceof Double && right instanceof String) return;
+    else if (left instanceof String && right instanceof Double) return;
     throw new RuntimeError(operator, "Operands must be numbers.");
   }
 

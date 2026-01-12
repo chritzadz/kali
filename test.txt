@@ -1,3 +1,2 @@
-string var = "Hello ";
-string a = "World!";
-print var+a;
+string var = "hello";
+print 2 * var;
