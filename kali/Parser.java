@@ -25,7 +25,7 @@ public class Parser {
 
   private Stmt declaration() {
     try {
-      if (match(TokenType.VAR)) return varDeclaration();
+      if (match(TokenType.TYPE_NUMBER, TokenType.TYPE_STRING, TokenType.TYPE_BOOLEAN)) return varDeclaration();
 
       return statement();
     } catch (ParseError error) {
@@ -35,6 +35,7 @@ public class Parser {
   }
 
   private Stmt varDeclaration() {
+    Token type = previous();
     Token name = consume(TokenType.IDENTIFIER, "Expect variable name.");
 
     Expr initializer = null;
@@ -43,7 +44,7 @@ public class Parser {
     }
 
     consume(TokenType.SEMICOLON, "Expect ';' after variable declaration.");
-    return new Stmt.Var(name, initializer);
+    return new Stmt.Var(name, type, initializer);
   }
 
   private Stmt statement() {
@@ -213,7 +214,6 @@ public class Parser {
       switch (peek().type) {
         case CLASS:
         case FUN:
-        case VAR:
         case FOR:
         case IF:
         case WHILE:

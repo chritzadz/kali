@@ -32,8 +32,11 @@ public class Scanner {
     keywords.put("super",  TokenType.SUPER);
     keywords.put("this",   TokenType.THIS);
     keywords.put("true",   TokenType.TRUE);
-    keywords.put("var",    TokenType.VAR);
     keywords.put("while",  TokenType.WHILE);
+    keywords.put("string", TokenType.TYPE_STRING);
+    keywords.put("number", TokenType.TYPE_NUMBER);
+    keywords.put("boolean", TokenType.TYPE_BOOLEAN);
+    // keywords.put("void", TokenType.VOID); // Void might be useful later, but sticking to requested types.
   }
 
   public Scanner(String source) {

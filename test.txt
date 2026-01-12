@@ -1,0 +1,3 @@
+string var = "Hello ";
+string a = "World!";
+print var+a;
