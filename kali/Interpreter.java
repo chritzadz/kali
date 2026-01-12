@@ -2,11 +2,25 @@ package kali;
 
 import java.util.List;
 
+import kali.Expr.Logical;
 import kali.Expr.UnaryPost;
 import kali.Expr.Variable;
 
 class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
   private Environment environment = new Environment();
+
+  @Override
+  public Object visitLogicalExpr(Logical expr) {
+    //i kinda get it know, we wanna implmement short circuit and AND OR Precendence
+    Object left = evaluate(expr.left);
+    if (expr.operator.type == TokenType.OR) {
+      if (isTruthy(left)) return left;
+    } else {
+      if (!isTruthy(left)) return left;
+    }
+
+    return evaluate(expr.right);
+  }
 
   void interpret(List<Stmt> statements) {
     try {

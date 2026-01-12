@@ -6,6 +6,7 @@ import kali.Expr.Assign;
 import kali.Expr.Binary;
 import kali.Expr.Grouping;
 import kali.Expr.Literal;
+import kali.Expr.Logical;
 import kali.Expr.Unary;
 import kali.Expr.UnaryPost;
 import kali.Expr.Variable;
@@ -26,6 +27,14 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     } catch (CompilationError error){
       Kali.compilationError(error);
     }
+  }
+
+  @Override
+  public Object visitLogicalExpr(Logical expr) {
+    Object left = evaluate(expr.left);
+    Object right = evaluate(expr.right);
+
+    return checkBooleanOperands(expr.operator, left, right);
   }
 
   @Override
@@ -227,6 +236,11 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
       return DataType.STRING;
     }
     throw new CompilationError(operator, "Operands must be strings or numbers");
+  }
+
+  private Object checkBooleanOperands(Token operator, Object left, Object right) throws CompilationError{
+    if (left == DataType.BOOLEAN && right == DataType.BOOLEAN) return DataType.BOOLEAN;
+    throw new CompilationError(operator, "Operands must be booleans.");
   }
 
   void executeBlock(List<Stmt> statements, Environment environment) {

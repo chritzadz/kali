@@ -17,6 +17,7 @@ public class GenerateAst {
 			"Binary : Expr left, Token operator, Expr right",
 			"Grouping : Expr expression",
 			"Literal : Object value",
+			"Logical : Expr left, Token operator, Expr right", //I wonder why Lox implement this seperately OH NVM we want precedence
 			"Unary : Token operator, Expr right",
 			"UnaryPost : Expr left, Token operator",
 			"Variable	: Token name"

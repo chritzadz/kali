@@ -1,11 +1,17 @@
 package kali;
 
 import kali.Expr.Assign;
+import kali.Expr.Logical;
 import kali.Expr.Variable;
 
 class AstPrinter implements Expr.Visitor<String> {
   String print(Expr expr) {
     return expr.accept(this);
+  }
+
+  @Override
+  public String visitLogicalExpr(Logical expr) {
+    return parenthesize(expr.operator.lexeme, expr.left, expr.right);
   }
 
 	@Override
