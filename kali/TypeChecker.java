@@ -284,7 +284,7 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
 
   @Override
   public Void visitFunctionStmt(Stmt.Function stmt){
-    KaliFunction function = new KaliFunction(stmt, environment, isInitializer);
+    KaliFunction function = new KaliFunction(stmt, environment, false);
     environment.define(stmt.name.lexeme, function);
 
     checkFunction(stmt);
@@ -370,6 +370,7 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
 
     Map<String, KaliFunction> methods = new HashMap<>();
     for (Stmt.Function method : stmt.methods) {
+      boolean isInitializer = method.name.lexeme.equals(stmt.name.lexeme);
       KaliFunction function = new KaliFunction(method, environment, isInitializer);
       methods.put(method.name.lexeme, function);
     }
