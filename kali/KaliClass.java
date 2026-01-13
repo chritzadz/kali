@@ -6,15 +6,24 @@ import java.util.Map;
 class KaliClass implements KaliCallable{
   final String name;
   final Map<String, KaliFunction> methods;
+  final Map<String, Object> fields;
 
-  KaliClass(String name, Map<String, KaliFunction> methods) {
+  KaliClass(String name, Map<String, KaliFunction> methods, Map<String, Object> fields) {
     this.name = name;
     this.methods = methods;
+    this.fields = fields;
   }
 
   public KaliFunction findMethod(String name){
     if (methods.containsKey(name)) {
       return methods.get(name);
+    }
+    return null;
+  }
+  
+  public Object findField(String name) {
+    if (fields != null && fields.containsKey(name)) {
+      return fields.get(name);
     }
     return null;
   }

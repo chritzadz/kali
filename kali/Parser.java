@@ -66,22 +66,26 @@ public class Parser {
     consume(TokenType.LEFT_BRACE, "Expect '{' before class body.");
 
     List<Stmt.Function> methods = new ArrayList<>();
+    List<Stmt.Var> fields = new ArrayList<>();
     while (!check(TokenType.RIGHT_BRACE) && !isAtEnd()) {
       //manually derive methodss
       if (match(TokenType.TYPE_NUMBER, TokenType.TYPE_STRING, TokenType.TYPE_BOOLEAN, TokenType.IDENTIFIER)) {
         Token type = previous();
-        Token methodName = consume(TokenType.IDENTIFIER, "Expect method name.");
+        Token memberName = consume(TokenType.IDENTIFIER, "Expect member name.");
         
-        Stmt method = functionDeclaration(type, methodName);
-        methods.add((Stmt.Function)method);
+        if (check(TokenType.LEFT_PAREN)) {
+          methods.add((Stmt.Function)functionDeclaration(type, memberName));
+        } else {
+          fields.add((Stmt.Var)varDeclaration(type, memberName));
+        }
       } else {
-        throw error(peek(), "Expect method declaration.");
+        throw error(peek(), "Expect member declaration.");
       }
     }
 
     consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.");
 
-    return new Stmt.Class(name, methods);
+    return new Stmt.Class(name, methods, fields);
   }
 
 

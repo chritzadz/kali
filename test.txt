@@ -1,8 +1,20 @@
-class Bacon {
-  number eat() {
-    print "Crunch crunch crunch!";
-    return 1;
+class Bagel {
+  string flavor;
+  boolean toasted;
+
+  Bagel Bagel(string f, boolean t) {
+    this.flavor = f;
+    this.toasted = t;
+  }
+
+  string describe() {
+    string state = "raw";
+    if (this.toasted) {
+      state = "toasted";
+    }
+    return "A " + state + " " + this.flavor + " bagel.";
   }
 }
 
-Bacon().eat();
+Bagel myBreakfast = Bagel("everything", true);
+print myBreakfast.describe();

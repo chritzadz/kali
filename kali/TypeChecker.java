@@ -129,10 +129,14 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     Object object = evaluate(expr.object);
     if (object instanceof KaliClass) {
       KaliClass klass = (KaliClass) object;
+      
+      Object fieldType = klass.findField(expr.name.lexeme);
+      if (fieldType != null) return fieldType;
+
       KaliFunction method = klass.findMethod(expr.name.lexeme);
       if (method != null) return method;
       
-      return DataType.NIL;
+      throw new CompilationError(expr.name, "Undefined property '" + expr.name.lexeme + "'.");
     }
     
     throw new CompilationError(expr.name, "Only instances have properties.");
@@ -142,8 +146,15 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
   public Void visitSetExpr(Expr.Set expr) {
     Object object = evaluate(expr.object);
     if (object instanceof KaliClass) {
+      KaliClass klass = (KaliClass) object;
       Object valueType = evaluate(expr.value);
-      Object expectedType = environment.get(expr.name);
+      
+      Object expectedType = klass.findField(expr.name.lexeme);
+      
+      if (expectedType == null) {
+          throw new CompilationError(expr.name, "Undefined field '" + expr.name.lexeme + "'.");
+      }
+
       if (valueType != expectedType){
         throw new CompilationError(expr.name, "Field '" + expr.name.lexeme + "' is of type " + expectedType + " but assigned " + valueType + ".");
       }
@@ -375,7 +386,23 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
       methods.put(method.name.lexeme, function);
     }
 
-    KaliClass klass = new KaliClass(stmt.name.lexeme, methods);
+    Map<String, Object> fields = new HashMap<>();
+    for (Stmt.Var field : stmt.fields) {
+      Object type = DataType.NIL;
+      if (field.type.type == TokenType.TYPE_NUMBER) type = DataType.NUMBER;
+      else if (field.type.type == TokenType.TYPE_STRING) type = DataType.STRING;
+      else if (field.type.type == TokenType.TYPE_BOOLEAN) type = DataType.BOOLEAN;
+      else if (field.type.type == TokenType.IDENTIFIER) {
+         try {
+            type = environment.get(field.type); 
+         } catch (RuntimeError error) {
+            throw new CompilationError(field.type, "Unknown type.");
+         }
+      }
+      fields.put(field.name.lexeme, type);
+    }
+
+    KaliClass klass = new KaliClass(stmt.name.lexeme, methods, fields);
     environment.assign(stmt.name, klass);
 
     // Create a new scope for the class to define 'this'

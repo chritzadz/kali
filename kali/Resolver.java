@@ -176,6 +176,11 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     beginScope();
     scopes.peek().put("this", true);
+    for (Stmt.Var field : stmt.fields) {
+      if (field.initializer != null) {
+        resolve(field.initializer);
+      }
+    }
     for (Stmt.Function method : stmt.methods) {
       FunctionType declaration = FunctionType.METHOD;
       if (method.name.lexeme.equals(stmt.name.lexeme)){

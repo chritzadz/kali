@@ -54,7 +54,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
       methods.put(method.name.lexeme, function); //i just got whjy we create a seperate instance for class, since class is a whole new main environemtn seperated from the main
     }
 
-    KaliClass klass = new KaliClass(stmt.name.lexeme, methods);
+    KaliClass klass = new KaliClass(stmt.name.lexeme, methods, new HashMap<>());
     environment.assign(stmt.name, klass);
     return null;
   }
@@ -112,7 +112,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
   @Override
   public Object visitSetExpr(Expr.Set expr) {
     Object object = evaluate(expr.object);
-    if (object instanceof KaliClass) {
+    if (object instanceof KaliInstance) {
       Object value = evaluate(expr.value);
       ((KaliInstance)object).set(expr.name, value);
       return value;
