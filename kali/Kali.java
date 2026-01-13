@@ -74,10 +74,15 @@ public class Kali {
 		//for each token parse into a list of statements
 		Parser parser = new Parser(tokens);
     List<Stmt> statements = parser.parse();
+		if (hadError) return;
 
+		Resolver resolver = new Resolver(interpreter);
+    resolver.resolve(statements);
     if (hadError) return; //say this is the compilation
+
 		typeChecker.check(statements);
 		if (hadCompilationError) return;
+		
 		interpreter.interpret(statements);
 	}
 

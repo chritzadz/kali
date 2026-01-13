@@ -26,7 +26,10 @@ public class Parser {
 
   private Stmt declaration() {
     try {
-      if (match(TokenType.TYPE_NUMBER, TokenType.TYPE_STRING, TokenType.TYPE_BOOLEAN)) {
+      if (match(TokenType.CLASS)) {
+        return classDeclaration();
+      }
+      else if (match(TokenType.TYPE_NUMBER, TokenType.TYPE_STRING, TokenType.TYPE_BOOLEAN)) {
         Token type = previous();
         Token name = consume(TokenType.IDENTIFIER, "Expect name.");
 
@@ -36,13 +39,36 @@ public class Parser {
           return varDeclaration(type, name);
         }
       }
-
       return statement();
     } catch (ParseError error) {
       synchronize();
       return null;
     }
   }
+
+  private Stmt classDeclaration() {
+    Token name = consume(TokenType.IDENTIFIER, "Expect class name.");
+    consume(TokenType.LEFT_BRACE, "Expect '{' before class body.");
+
+    List<Stmt.Function> methods = new ArrayList<>();
+    while (!check(TokenType.RIGHT_BRACE) && !isAtEnd()) {
+      //manually derive methodss
+      if (match(TokenType.TYPE_NUMBER, TokenType.TYPE_STRING, TokenType.TYPE_BOOLEAN)) {
+        Token type = previous();
+        Token methodName = consume(TokenType.IDENTIFIER, "Expect method name.");
+        
+        Stmt method = functionDeclaration(type, methodName);
+        methods.add((Stmt.Function)method);
+      } else {
+        throw error(peek(), "Expect method declaration.");
+      }
+    }
+
+    consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.");
+
+    return new Stmt.Class(name, methods);
+  }
+
 
   private Stmt functionDeclaration(Token type, Token name) {
     consume(TokenType.LEFT_PAREN, "Expect '(' after function name.");

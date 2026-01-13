@@ -1,7 +1,9 @@
 package kali;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import kali.Expr.Logical;
 import kali.Expr.UnaryPost;
@@ -11,6 +13,7 @@ import kali.Stmt.While;
 class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
   private Environment environment = new Environment();
   final Environment globals = new Environment();
+  private final Map<Expr, Integer> locals = new HashMap<>();
 
   //Lox implementation to show foreign/in-built methods
   Interpreter() {
@@ -36,6 +39,14 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     } catch (RuntimeError error) {
       Kali.runtimeError(error);
     }
+  }
+
+  @Override
+  public Void visitClassStmt(Stmt.Class stmt) {
+    environment.define(stmt.name.lexeme, null);
+    KaliClass klass = new KaliClass(stmt.name.lexeme);
+    environment.assign(stmt.name, klass);
+    return null;
   }
 
   @Override
@@ -140,7 +151,14 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
   @Override
   public Object visitAssignExpr(Expr.Assign expr) {
     Object value = evaluate(expr.value);
-    environment.assign(expr.name, value);
+    
+    Integer distance = locals.get(expr);
+    if (distance != null) {
+      environment.assignAt(distance, expr.name, value);
+    } else {
+      globals.assign(expr.name, value);
+    }
+
     return value;
   }
 
@@ -320,11 +338,24 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
   @Override
   public Object visitVariableExpr(Expr.Variable expr) {
-    return environment.get(expr.name);
+    return lookUpVariable(expr.name, expr);
+  }
+
+  private Object lookUpVariable(Token name, Expr expr) {
+    Integer distance = locals.get(expr);
+    if (distance != null) {
+      return environment.getAt(distance, name.lexeme);
+    } else {
+      return globals.get(name);
+    }
   }
 
   private void execute(Stmt stmt) {
     stmt.accept(this);
+  }
+
+  void resolve(Expr expr, int depth) {
+    locals.put(expr, depth);
   }
 
   void executeBlock(List<Stmt> statements, Environment environment) {

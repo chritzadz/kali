@@ -12,6 +12,7 @@ import kali.Expr.Unary;
 import kali.Expr.UnaryPost;
 import kali.Expr.Variable;
 import kali.Stmt.Block;
+import kali.Stmt.Class;
 import kali.Stmt.Expression;
 import kali.Stmt.If;
 import kali.Stmt.Print;
@@ -80,12 +81,7 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
         throw new CompilationError(stmt.name, "Variable '" + stmt.name.lexeme + "' declared as " + stmt.type.lexeme + " but initialized with " + initializerType + ".");
       }
     }
-    
-    if (environment.hasCurrent(stmt.name.lexeme)) { //stricter tule in for functions as well.
-      throw new CompilationError(stmt.name, "Variable '" + stmt.name.lexeme + "' already declared in this scope.");
-    }
 
-    environment.define(stmt.name.lexeme, declaredType);
     return null;
   }
 
@@ -364,5 +360,11 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     } finally {
       this.environment = previous;
     }
+  }
+
+  @Override
+  public Void visitClassStmt(Class stmt) {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'visitClassStmt'");
   }
 }
