@@ -150,6 +150,13 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     return null;
   }
 
+  @Override
+  public Void visitClassStmt(Class stmt) {
+    declare(stmt.name);
+    define(stmt.name);
+    return null;
+  }
+
   private void resolveFunction(Stmt.Function function, FunctionType type) {
     FunctionType enclosingFunction = currentFunction;
     currentFunction = type;
@@ -209,11 +216,5 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
   private void resolve(Expr expr) {
     expr.accept(this);
-  }
-
-  @Override
-  public Void visitClassStmt(Class stmt) {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("Unimplemented method 'visitClassStmt'");
   }
 }

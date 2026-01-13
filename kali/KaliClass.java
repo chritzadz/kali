@@ -1,9 +1,8 @@
 package kali;
 
 import java.util.List;
-import java.util.Map;
 
-class KaliClass {
+class KaliClass implements KaliCallable{
   final String name;
 
   KaliClass(String name) {
@@ -13,5 +12,16 @@ class KaliClass {
   @Override
   public String toString() {
     return name;
+  }
+
+  @Override
+  public Object call(Interpreter interpreter, List<Object> arguments) {
+    KaliInstance instance = new KaliInstance(this);
+    return instance;
+  }
+
+  @Override
+  public int arity() {
+    return 0; //for now
   }
 }

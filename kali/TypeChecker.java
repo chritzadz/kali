@@ -1,6 +1,5 @@
 package kali;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import kali.Expr.Assign;
@@ -82,6 +81,7 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
       }
     }
 
+    environment.define(stmt.name.lexeme, declaredType);
     return null;
   }
 
@@ -140,10 +140,9 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
           throw new CompilationError(expr.operator, "Operands must be the same type.");
         }
         return DataType.BOOLEAN;
+      default:
+        return DataType.NIL;
     }
-
-      // Unreachable.
-      return DataType.NIL;
   }
 
   @Override
@@ -170,14 +169,22 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
         return checkNumberOperand(expr.operator, right);
       case BANG:
         return DataType.BOOLEAN;
+      default:
+        return DataType.NIL;
     }
-
-    return DataType.NIL;
   }
 
   @Override
   public Object visitCallExpr(Expr.Call expr) {
     Object callee = evaluate(expr.callee);
+
+    if (callee instanceof KaliClass) {
+      KaliClass klass = (KaliClass)callee;
+      if (expr.arguments.size() != klass.arity()) {
+        throw new CompilationError(expr.paren, "Expected " + klass.arity() + " arguments but got " + expr.arguments.size() + ".");
+      }
+      return klass;
+    }
 
     if (!(callee instanceof KaliFunction)) {
       // since the function name will be set as an identifier, making sure that an identifier that have callee == null is just a variable declaration. cannot be called.
@@ -219,6 +226,11 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     KaliFunction function = new KaliFunction(stmt);
     environment.define(stmt.name.lexeme, function);
 
+    checkFunction(stmt);
+    return null;
+  }
+
+  private void checkFunction(Stmt.Function stmt) {
     //since it is a tree-like structure, save the "parent" type to ref
     DataType enclosingFunctionType = currentReturnType;
     
@@ -249,7 +261,6 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
         this.environment = previous;
         currentReturnType = enclosingFunctionType;
     }
-    return null;
   }
 
   @Override
@@ -284,6 +295,19 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
       throw new CompilationError(error.token, error.getMessage());
     }
   }
+
+  @Override
+  public Void visitClassStmt(Class stmt) {
+    environment.define(stmt.name.lexeme, null);
+    KaliClass klass = new KaliClass(stmt.name.lexeme);
+    environment.assign(stmt.name, klass);
+
+    for (Stmt.Function method : stmt.methods) {
+      checkFunction(method);
+    }
+
+    return null;
+  }
   
   private void execute(Stmt stmt){
     stmt.accept(this);
@@ -310,10 +334,10 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     throw new CompilationError(operator, "Operands must be numbers.");
   }
 
-  private Object checkStringOperands(Token operator, Object left, Object right) throws CompilationError {
-    if (left == DataType.STRING && right == DataType.STRING) return DataType.STRING;
-    throw new CompilationError(operator, "Operands must be strings.");
-  }
+  // private Object checkStringOperands(Token operator, Object left, Object right) throws CompilationError {
+  //   if (left == DataType.STRING && right == DataType.STRING) return DataType.STRING;
+  //   throw new CompilationError(operator, "Operands must be strings.");
+  // }
 
   private Object checkStringNumberOperands(Token operator, Object left, Object right) throws CompilationError {
     if (left == DataType.STRING && right == DataType.STRING)
@@ -360,11 +384,5 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     } finally {
       this.environment = previous;
     }
-  }
-
-  @Override
-  public Void visitClassStmt(Class stmt) {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("Unimplemented method 'visitClassStmt'");
   }
 }

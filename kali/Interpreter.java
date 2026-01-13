@@ -17,6 +17,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
   //Lox implementation to show foreign/in-built methods
   Interpreter() {
+    environment = globals;
     globals.define("clock", new KaliCallable() {
       @Override
       public int arity() { return 0; }
@@ -262,10 +263,9 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         
       case BANG_EQUAL: return !isEqual(left, right);
       case EQUAL_EQUAL: return isEqual(left, right);
+      default:
+        return null;
     }
-
-    // Unreachable.
-    return null;
   }
 
   @Override
@@ -305,10 +305,9 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
           environment.assign(name, incremented);
           return incremented;
         }
+      default:
+        return null;
     }
-
-    // Unreachable.
-    return null;
   }
 
   @Override
@@ -332,8 +331,9 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
           environment.assign(name, incremented);
         }
         return left1;
+      default:
+        return null;
     }
-    return null;
   }
 
   @Override
