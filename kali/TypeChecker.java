@@ -1,6 +1,8 @@
 package kali;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import kali.Expr.Assign;
 import kali.Expr.Binary;
@@ -20,7 +22,7 @@ import kali.Stmt.While;
 
 public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
   private Environment environment = new Environment();
-  private DataType currentReturnType = DataType.NIL;
+  private Object currentReturnType = DataType.NIL;
 
   void check(List<Stmt> statements){
     try {
@@ -123,6 +125,44 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
   }
 
   @Override
+  public Object visitGetExpr(Expr.Get expr) {
+    Object object = evaluate(expr.object);
+    if (object instanceof KaliClass) {
+      KaliClass klass = (KaliClass) object;
+      KaliFunction method = klass.findMethod(expr.name.lexeme);
+      if (method != null) return method;
+      
+      return DataType.NIL;
+    }
+    
+    throw new CompilationError(expr.name, "Only instances have properties.");
+  }
+
+  @Override
+  public Void visitSetExpr(Expr.Set expr) {
+    Object object = evaluate(expr.object);
+    if (object instanceof KaliClass) {
+      Object valueType = evaluate(expr.value);
+      Object expectedType = environment.get(expr.name);
+      if (valueType != expectedType){
+        throw new CompilationError(expr.name, "Field '" + expr.name.lexeme + "' is of type " + expectedType + " but assigned " + valueType + ".");
+      }
+      
+      return null;
+    }
+    throw new CompilationError(expr.name, "Only instances have fields.");
+  }
+
+  @Override
+  public Object visitThisExpr(Expr.This expr) {
+    try {
+      return environment.get(expr.keyword);
+    } catch (RuntimeError error) {
+      throw new CompilationError(expr.keyword, error.getMessage());
+    }
+  }
+
+  @Override
   public Object visitBinaryExpr(Binary expr) {
     Object left = evaluate(expr.left);
     Object right = evaluate(expr.right);
@@ -209,10 +249,17 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
         Token paramTypeToken = function.declaration.paramTypes.get(i);
         
         //check dataytype of each parameter to its expected parent.
-        DataType expectedType = DataType.NIL;
+        Object expectedType = DataType.NIL;
         if (paramTypeToken.type == TokenType.TYPE_NUMBER) expectedType = DataType.NUMBER;
         else if (paramTypeToken.type == TokenType.TYPE_STRING) expectedType = DataType.STRING;
         else if (paramTypeToken.type == TokenType.TYPE_BOOLEAN) expectedType = DataType.BOOLEAN;
+        else if (paramTypeToken.type == TokenType.IDENTIFIER) {
+            try {
+                expectedType = environment.get(paramTypeToken);
+            } catch (RuntimeError e) {
+                throw new CompilationError(paramTypeToken, "Unknown param type '" + paramTypeToken.lexeme + "'.");
+            }
+        }
 
         if (argType != expectedType) {
             throw new CompilationError(expr.paren, "Argument " + (i+1) + " expects " + expectedType + " but got " + argType + ".");
@@ -224,13 +271,20 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     if (returnTypeToken.type == TokenType.TYPE_NUMBER) return DataType.NUMBER;
     else if (returnTypeToken.type == TokenType.TYPE_STRING) return DataType.STRING;
     else if (returnTypeToken.type == TokenType.TYPE_BOOLEAN) return DataType.BOOLEAN;
+    else if (returnTypeToken.type == TokenType.IDENTIFIER) {
+      try {
+        return environment.get(returnTypeToken);
+      } catch (RuntimeError e) {
+        throw new CompilationError(returnTypeToken, "Unknown return type '" + returnTypeToken.lexeme + "'.");
+      }
+    }
     
     return DataType.NIL;
   }
 
   @Override
   public Void visitFunctionStmt(Stmt.Function stmt){
-    KaliFunction function = new KaliFunction(stmt);
+    KaliFunction function = new KaliFunction(stmt, environment, isInitializer);
     environment.define(stmt.name.lexeme, function);
 
     checkFunction(stmt);
@@ -239,11 +293,18 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
 
   private void checkFunction(Stmt.Function stmt) {
     //since it is a tree-like structure, save the "parent" type to ref
-    DataType enclosingFunctionType = currentReturnType;
+    Object enclosingFunctionType = currentReturnType;
     
     if (stmt.type.type == TokenType.TYPE_NUMBER) currentReturnType = DataType.NUMBER;
     else if (stmt.type.type == TokenType.TYPE_STRING) currentReturnType = DataType.STRING;
     else if (stmt.type.type == TokenType.TYPE_BOOLEAN) currentReturnType = DataType.BOOLEAN;
+    else if (stmt.type.type == TokenType.IDENTIFIER) {
+      try {
+        currentReturnType = environment.get(stmt.type);
+      } catch (RuntimeError error) {
+        throw new CompilationError(stmt.type, "Unknown class type '" + stmt.type.lexeme + "'.");
+      }
+    }
     else currentReturnType = DataType.NIL;
 
     Environment previous = this.environment;
@@ -306,11 +367,27 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
   @Override
   public Void visitClassStmt(Class stmt) {
     environment.define(stmt.name.lexeme, null);
-    KaliClass klass = new KaliClass(stmt.name.lexeme);
+
+    Map<String, KaliFunction> methods = new HashMap<>();
+    for (Stmt.Function method : stmt.methods) {
+      KaliFunction function = new KaliFunction(method, environment, isInitializer);
+      methods.put(method.name.lexeme, function);
+    }
+
+    KaliClass klass = new KaliClass(stmt.name.lexeme, methods);
     environment.assign(stmt.name, klass);
 
-    for (Stmt.Function method : stmt.methods) {
-      checkFunction(method);
+    // Create a new scope for the class to define 'this'
+    Environment previous = this.environment;
+    this.environment = new Environment(environment);
+    this.environment.define("this", klass);
+
+    try {
+      for (Stmt.Function method : stmt.methods) {
+        checkFunction(method);
+      }
+    } finally {
+      this.environment = previous;
     }
 
     return null;

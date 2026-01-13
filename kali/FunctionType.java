@@ -1,5 +1,5 @@
 package kali;
 
 public enum FunctionType {
-  NONE, FUNCTION
+  NONE, FUNCTION, METHOD, INITIALIZER,
 }

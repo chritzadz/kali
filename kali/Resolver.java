@@ -89,6 +89,9 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     if (stmt.value != null) {
+      if (currentFunction == FunctionType.INITIALIZER) {
+        Kali.error(stmt.keyword,"Can't return a value from an initializer."); //no value in constructor
+      }
       resolve(stmt.value);
     }
 
@@ -117,6 +120,19 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
       resolve(argument);
     }
 
+    return null;
+  }
+
+  @Override
+  public Void visitGetExpr(Expr.Get expr) {
+    resolve(expr.object);
+    return null;
+  }
+
+  @Override
+  public Void visitSetExpr(Expr.Set expr) {
+    resolve(expr.value);
+    resolve(expr.object);
     return null;
   }
 
@@ -152,10 +168,38 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
   @Override
   public Void visitClassStmt(Class stmt) {
+    ClassType enclosingClass = currentClass;
+    currentClass = ClassType.CLASS;
+
     declare(stmt.name);
     define(stmt.name);
+
+    beginScope();
+    scopes.peek().put("this", true);
+    for (Stmt.Function method : stmt.methods) {
+      FunctionType declaration = FunctionType.METHOD;
+      if (method.name.lexeme.equals(stmt.name.lexeme)){
+        declaration = FunctionType.INITIALIZER;
+      }
+      resolveFunction(method, declaration); //resolve each function
+    }
+    endScope();
+
+    currentClass = enclosingClass;
     return null;
   }
+
+  @Override
+  public Void visitThisExpr(Expr.This expr) {
+    if (currentClass == ClassType.NONE) {
+      Kali.error(expr.keyword,"Can't use 'this' outside of a class.");
+      return null;
+    }
+
+    resolveLocal(expr, expr.keyword);
+    return null;
+  }
+
 
   private void resolveFunction(Stmt.Function function, FunctionType type) {
     FunctionType enclosingFunction = currentFunction;
@@ -217,4 +261,11 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
   private void resolve(Expr expr) {
     expr.accept(this);
   }
+
+  private enum ClassType {
+    NONE,
+    CLASS
+  }
+
+  private ClassType currentClass = ClassType.NONE;
 }

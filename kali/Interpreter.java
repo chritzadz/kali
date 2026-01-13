@@ -45,9 +45,23 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
   @Override
   public Void visitClassStmt(Stmt.Class stmt) {
     environment.define(stmt.name.lexeme, null);
-    KaliClass klass = new KaliClass(stmt.name.lexeme);
+
+    Map<String, KaliFunction> methods = new HashMap<>();
+    for (Stmt.Function method : stmt.methods) {
+      boolean isInitializer = method.name.lexeme.equals(stmt.name.lexeme);
+      KaliFunction function = new KaliFunction(method, environment, isInitializer);
+
+      methods.put(method.name.lexeme, function); //i just got whjy we create a seperate instance for class, since class is a whole new main environemtn seperated from the main
+    }
+
+    KaliClass klass = new KaliClass(stmt.name.lexeme, methods);
     environment.assign(stmt.name, klass);
     return null;
+  }
+
+  @Override
+  public Object visitThisExpr(Expr.This expr) {
+    return lookUpVariable(expr.keyword, expr);
   }
 
   @Override
@@ -86,8 +100,31 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
   }
 
   @Override
+  public Object visitGetExpr(Expr.Get expr) {
+    Object object = evaluate(expr.object);
+    if (object instanceof KaliInstance) {
+      return ((KaliInstance) object).get(expr.name); //return the get
+    }
+
+    throw new RuntimeError(expr.name,"Only instances have properties.");
+  }
+
+  @Override
+  public Object visitSetExpr(Expr.Set expr) {
+    Object object = evaluate(expr.object);
+    if (object instanceof KaliClass) {
+      Object value = evaluate(expr.value);
+      ((KaliInstance)object).set(expr.name, value);
+      return value;
+    }
+
+    throw new CompilationError(expr.name, "Only instances have fields.");
+  }
+
+
+  @Override
   public Void visitFunctionStmt(Stmt.Function stmt){
-    KaliFunction function = new KaliFunction(stmt, environment);
+    KaliFunction function = new KaliFunction(stmt, environment, false);
     environment.define(stmt.name.lexeme, function);
     return null;
   }

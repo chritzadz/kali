@@ -1,3 +1,8 @@
-class Bagel {}
-Bagel b = Bagel();
-print b;
+class Bacon {
+  number eat() {
+    print "Crunch crunch crunch!";
+    return 1;
+  }
+}
+
+Bacon().eat();
