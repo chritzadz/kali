@@ -1,3 +1,3 @@
 class Bagel {}
-
-print Bagel();
+Bagel b = Bagel();
+print b;

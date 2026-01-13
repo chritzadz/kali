@@ -29,7 +29,9 @@ public class Parser {
       if (match(TokenType.CLASS)) {
         return classDeclaration();
       }
-      else if (match(TokenType.TYPE_NUMBER, TokenType.TYPE_STRING, TokenType.TYPE_BOOLEAN)) {
+      
+      //check primitive type
+      if (match(TokenType.TYPE_NUMBER, TokenType.TYPE_STRING, TokenType.TYPE_BOOLEAN)) {
         Token type = previous();
         Token name = consume(TokenType.IDENTIFIER, "Expect name.");
 
@@ -39,6 +41,19 @@ public class Parser {
           return varDeclaration(type, name);
         }
       }
+
+      // check custom type (CLASSES)
+      if (check(TokenType.IDENTIFIER) && checkNext(TokenType.IDENTIFIER)) { 
+        Token type = advance();
+        Token name = consume(TokenType.IDENTIFIER, "Expect name.");
+
+        if (check(TokenType.LEFT_PAREN)) {
+          return functionDeclaration(type, name);
+        } else {
+          return varDeclaration(type, name);
+        }
+      }
+
       return statement();
     } catch (ParseError error) {
       synchronize();
@@ -457,6 +472,12 @@ public class Parser {
   private boolean check(TokenType type) {
     if (isAtEnd()) return false;
     return peek().type == type;
+  }
+
+  private boolean checkNext(TokenType type) {
+    if (isAtEnd()) return false;
+    if (current + 1 >= tokens.size()) return false;
+    return tokens.get(current + 1).type == type;
   }
 
   /**

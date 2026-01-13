@@ -72,6 +72,13 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     if (stmt.type.type == TokenType.TYPE_NUMBER) declaredType = DataType.NUMBER;
     else if (stmt.type.type == TokenType.TYPE_STRING) declaredType = DataType.STRING;
     else if (stmt.type.type == TokenType.TYPE_BOOLEAN) declaredType = DataType.BOOLEAN;
+    else if (stmt.type.type == TokenType.IDENTIFIER) {
+      try {
+        declaredType = environment.get(stmt.type); //get the  decalred type
+      } catch (RuntimeError error) {
+        throw new CompilationError(stmt.type, "Unknown class type '" + stmt.type.lexeme + "'.");
+      }
+    }
 
     //check invalid assignment
     if (stmt.initializer != null) {
