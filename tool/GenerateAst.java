@@ -12,11 +12,14 @@ public class GenerateAst {
       System.exit(64);
     }
     String outputDir = args[0];
+		//This defines the precedence as well...
     defineAst(outputDir, "Expr", Arrays.asList(
 			"Assign : Token name, Expr value",
 			"Binary : Expr left, Token operator, Expr right",
+			"Call : Expr callee, Token paren, List<Expr> arguments",
 			"Grouping : Expr expression",
 			"Literal : Object value",
+			"Logical : Expr left, Token operator, Expr right", //I wonder why Lox implement this seperately OH NVM we want precedence
 			"Unary : Token operator, Expr right",
 			"UnaryPost : Expr left, Token operator",
 			"Variable	: Token name"
@@ -25,8 +28,11 @@ public class GenerateAst {
 		defineAst(outputDir, "Stmt", Arrays.asList(
 			"Block : List<Stmt> statements",
       "Expression : Expr expression",
+			"Function		: Token name, Token type, List<Token> params, List<Token> paramTypes," + " List<Stmt> body",
       "Print      : Expr expression",
+			"Return			: Token keyword, Expr value",
 			"Var				: Token name, Token type, Expr initializer",
+			"While			: Expr condition, Stmt body",
 			"If					: Expr condition, Stmt thenBranch," + " Stmt elseBranch"
     ));
   }

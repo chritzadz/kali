@@ -1,1 +1,6 @@
-print "hello" > "test";
+number f(number a){
+  number a = 2;
+  return a;
+}
+
+f(3);

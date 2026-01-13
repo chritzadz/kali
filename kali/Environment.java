@@ -19,6 +19,10 @@ class Environment {
     values.put(name, value);
   }
 
+  boolean hasCurrent(String name) {
+    return values.containsKey(name);
+  }
+
   Object get(Token name) {
     if (values.containsKey(name.lexeme)){
       return values.get(name.lexeme);
@@ -38,6 +42,7 @@ class Environment {
     //if the nevironemtn is an inner (not global) then assign every global variable inside the
     if (enclosing != null) {
       enclosing.assign(name, value);
+      return; //oops first bug
     }
 
     throw new RuntimeError(name,
