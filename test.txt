@@ -1,4 +1,6 @@
-number a = 1;
-number a = 2;
+number f(number a){
+  number a = 2;
+  return a;
+}
 
-print a;
+f(3);

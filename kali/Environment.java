@@ -19,6 +19,10 @@ class Environment {
     values.put(name, value);
   }
 
+  boolean hasCurrent(String name) {
+    return values.containsKey(name);
+  }
+
   Object get(Token name) {
     if (values.containsKey(name.lexeme)){
       return values.get(name.lexeme);

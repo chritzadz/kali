@@ -81,6 +81,10 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
       }
     }
     
+    if (environment.hasCurrent(stmt.name.lexeme)) { //stricter tule in for functions as well.
+      throw new CompilationError(stmt.name, "Variable '" + stmt.name.lexeme + "' already declared in this scope.");
+    }
+
     environment.define(stmt.name.lexeme, declaredType);
     return null;
   }
