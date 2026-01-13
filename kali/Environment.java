@@ -38,6 +38,7 @@ class Environment {
     //if the nevironemtn is an inner (not global) then assign every global variable inside the
     if (enclosing != null) {
       enclosing.assign(name, value);
+      return; //oops first bug
     }
 
     throw new RuntimeError(name,

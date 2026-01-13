@@ -1,6 +1,7 @@
 package kali;
 
 import kali.Expr.Assign;
+import kali.Expr.Call;
 import kali.Expr.Logical;
 import kali.Expr.Variable;
 
@@ -73,6 +74,12 @@ class AstPrinter implements Expr.Visitor<String> {
   @Override
   public String visitVariableExpr(Variable expr) {
     return expr.name.lexeme;
+  }
+
+  @Override
+  public String visitCallExpr(Call expr) {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'visitCallExpr'");
   }
 }
 

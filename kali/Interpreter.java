@@ -1,25 +1,31 @@
 package kali;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import kali.Expr.Logical;
 import kali.Expr.UnaryPost;
 import kali.Expr.Variable;
+import kali.Stmt.While;
 
 class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
   private Environment environment = new Environment();
+  final Environment globals = new Environment();
 
-  @Override
-  public Object visitLogicalExpr(Logical expr) {
-    //i kinda get it know, we wanna implmement short circuit and AND OR Precendence
-    Object left = evaluate(expr.left);
-    if (expr.operator.type == TokenType.OR) {
-      if (isTruthy(left)) return left;
-    } else {
-      if (!isTruthy(left)) return left;
-    }
+  //Lox implementation to show foreign/in-built methods
+  Interpreter() {
+    globals.define("clock", new KaliCallable() {
+      @Override
+      public int arity() { return 0; }
 
-    return evaluate(expr.right);
+      @Override
+      public Object call(Interpreter interpreter, List<Object> arguments) {
+        return (double)System.currentTimeMillis() / 1000.0;
+      }
+
+      @Override
+      public String toString() { return "<native fn>"; }
+    });
   }
 
   void interpret(List<Stmt> statements) {
@@ -45,11 +51,70 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
   }
 
   @Override
+  public Object visitCallExpr(Expr.Call expr) {
+    Object callee = evaluate(expr.callee);
+
+    List<Object> arguments = new ArrayList<>();
+    for (Expr argument : expr.arguments) {
+      arguments.add(evaluate(argument));
+    }
+
+    if (!(callee instanceof KaliCallable)) {
+      throw new RuntimeError(expr.paren,
+        "Can only call functions and classes.");
+    }
+
+    KaliCallable function = (KaliCallable)callee;
+    if (arguments.size() != function.arity()) {
+      throw new RuntimeError(expr.paren, "Expected " +
+          function.arity() + " arguments but got " +
+          arguments.size() + ".");
+    }
+    return function.call(this, arguments);
+  }
+
+  @Override
+  public Void visitFunctionStmt(Stmt.Function stmt){
+    KaliFunction function = new KaliFunction(stmt, environment);
+    environment.define(stmt.name.lexeme, function);
+    return null;
+  }
+
+  @Override
+  public Void visitReturnStmt(Stmt.Return stmt) {
+    Object value = null;
+    if (stmt.value != null) value = evaluate(stmt.value);
+
+    throw new Return(value);
+  }
+
+  @Override
   public Void visitIfStmt(Stmt.If stmt) {
     if (isTruthy(evaluate(stmt.condition))) {
       execute(stmt.thenBranch);
     } else if (stmt.elseBranch != null) {
       execute(stmt.elseBranch);
+    }
+    return null;
+  }
+
+  @Override
+  public Object visitLogicalExpr(Logical expr) {
+    //i kinda get it know, we wanna implmement short circuit and AND OR Precendence
+    Object left = evaluate(expr.left);
+    if (expr.operator.type == TokenType.OR) {
+      if (isTruthy(left)) return left;
+    } else {
+      if (!isTruthy(left)) return left;
+    }
+
+    return evaluate(expr.right);
+  }
+
+  @Override
+  public Void visitWhileStmt(While stmt) {
+    while (isTruthy(evaluate(stmt.condition))){
+      execute(stmt.body);
     }
     return null;
   }

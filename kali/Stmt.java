@@ -7,8 +7,11 @@ abstract class Stmt {
   interface Visitor<R> {
     R visitBlockStmt(Block stmt);
     R visitExpressionStmt(Expression stmt);
+    R visitFunctionStmt(Function stmt);
     R visitPrintStmt(Print stmt);
+    R visitReturnStmt(Return stmt);
     R visitVarStmt(Var stmt);
+    R visitWhileStmt(While stmt);
     R visitIfStmt(If stmt);
   }
   static class Block extends Stmt {
@@ -35,6 +38,26 @@ abstract class Stmt {
 
     final Expr expression;
   }
+  static class Function extends Stmt {
+    Function(Token name, Token type, List<Token> params, List<Token> paramTypes, List<Stmt> body) {
+      this.name = name;
+      this.type = type;
+      this.params = params;
+      this.paramTypes = paramTypes;
+      this.body = body;
+    }
+
+    @Override
+    <R> R accept(Visitor<R> visitor) {
+      return visitor.visitFunctionStmt(this);
+    }
+
+    final Token name;
+    final Token type;
+    final List<Token> params;
+    final List<Token> paramTypes;
+    final List<Stmt> body;
+  }
   static class Print extends Stmt {
     Print(Expr expression) {
       this.expression = expression;
@@ -46,6 +69,20 @@ abstract class Stmt {
     }
 
     final Expr expression;
+  }
+  static class Return extends Stmt {
+    Return(Token keyword, Expr value) {
+      this.keyword = keyword;
+      this.value = value;
+    }
+
+    @Override
+    <R> R accept(Visitor<R> visitor) {
+      return visitor.visitReturnStmt(this);
+    }
+
+    final Token keyword;
+    final Expr value;
   }
   static class Var extends Stmt {
     Var(Token name, Token type, Expr initializer) {
@@ -62,6 +99,20 @@ abstract class Stmt {
     final Token name;
     final Token type;
     final Expr initializer;
+  }
+  static class While extends Stmt {
+    While(Expr condition, Stmt body) {
+      this.condition = condition;
+      this.body = body;
+    }
+
+    @Override
+    <R> R accept(Visitor<R> visitor) {
+      return visitor.visitWhileStmt(this);
+    }
+
+    final Expr condition;
+    final Stmt body;
   }
   static class If extends Stmt {
     If(Expr condition, Stmt thenBranch, Stmt elseBranch) {
