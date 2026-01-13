@@ -30,6 +30,20 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
       @Override
       public String toString() { return "<native fn>"; }
     });
+
+    globals.define("print", new KaliCallable() {
+      @Override
+      public int arity() { return 1; }
+
+      @Override
+      public Object call(Interpreter interpreter, List<Object> arguments) {
+        System.out.println(stringify(arguments.get(0)));
+        return null;
+      }
+
+      @Override
+      public String toString() { return "<native fn>"; }
+    });
   }
 
   void interpret(List<Stmt> statements) {
