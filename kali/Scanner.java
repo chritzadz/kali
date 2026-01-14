@@ -35,6 +35,7 @@ public class Scanner {
     keywords.put("string", TokenType.TYPE_STRING);
     keywords.put("number", TokenType.TYPE_NUMBER);
     keywords.put("boolean", TokenType.TYPE_BOOLEAN);
+    keywords.put("extends", TokenType.EXTENDS);
     // keywords.put("void", TokenType.VOID); // Void might be useful later, but sticking to requested types.
   }
 

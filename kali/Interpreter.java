@@ -1,7 +1,9 @@
 package kali;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import kali.Expr.Logical;
 import kali.Expr.UnaryPost;
@@ -11,9 +13,11 @@ import kali.Stmt.While;
 class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
   private Environment environment = new Environment();
   final Environment globals = new Environment();
+  private final Map<Expr, Integer> locals = new HashMap<>();
 
   //Lox implementation to show foreign/in-built methods
   Interpreter() {
+    environment = globals;
     globals.define("clock", new KaliCallable() {
       @Override
       public int arity() { return 0; }
@@ -21,6 +25,20 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
       @Override
       public Object call(Interpreter interpreter, List<Object> arguments) {
         return (double)System.currentTimeMillis() / 1000.0;
+      }
+
+      @Override
+      public String toString() { return "<native fn>"; }
+    });
+
+    globals.define("print", new KaliCallable() {
+      @Override
+      public int arity() { return 1; }
+
+      @Override
+      public Object call(Interpreter interpreter, List<Object> arguments) {
+        System.out.println(stringify(arguments.get(0)));
+        return null;
       }
 
       @Override
@@ -36,6 +54,58 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     } catch (RuntimeError error) {
       Kali.runtimeError(error);
     }
+  }
+
+  @Override
+  public Void visitClassStmt(Stmt.Class stmt) {
+    Object superclass = null;
+    if (stmt.superclass != null){
+      superclass = evaluate(stmt.superclass);
+      if (!(superclass instanceof KaliClass)){
+        throw new RuntimeError(stmt.superclass.name, "Superclass must be a class.");
+      }
+    }
+
+    environment.define(stmt.name.lexeme, null);
+
+    if (stmt.superclass != null) {
+      environment = new Environment(environment); // create new nevironment for super variable, corresponding to the Kali Class it inherits
+      environment.define("super", superclass);
+    }
+
+    Map<String, KaliFunction> methods = new HashMap<>();
+    for (Stmt.Function method : stmt.methods) {
+      boolean isInitializer = method.name.lexeme.equals(stmt.name.lexeme);
+      KaliFunction function = new KaliFunction(method, environment, isInitializer);
+
+      methods.put(method.name.lexeme, function); //i just got whjy we create a seperate instance for class, since class is a whole new main environemtn seperated from the main
+    }
+    KaliClass klass = new KaliClass(stmt.name.lexeme, (KaliClass)superclass, methods, new HashMap<>());
+
+    if (superclass != null) {
+      environment = environment.enclosing;
+    }
+
+    environment.assign(stmt.name, klass);
+    return null;
+  }
+
+  @Override
+  public Object visitThisExpr(Expr.This expr) {
+    return lookUpVariable(expr.keyword, expr);
+  }
+
+  @Override
+  public Object visitSuperExpr(Expr.Super expr) {
+    int distance = locals.get(expr);
+    KaliClass superclass = (KaliClass)environment.getAt(distance, "super");
+    KaliInstance object = (KaliInstance)environment.getAt(distance - 1, "this"); //this is inbound right insiide the env we store super, so manually insert
+    KaliFunction method = superclass.findMethod(expr.method.lexeme);
+
+    if (method == null) {
+      throw new RuntimeError(expr.method, "Undefined property '" + expr.method.lexeme + "'.");
+    }
+    return method.bind(object);
   }
 
   @Override
@@ -74,8 +144,31 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
   }
 
   @Override
+  public Object visitGetExpr(Expr.Get expr) {
+    Object object = evaluate(expr.object);
+    if (object instanceof KaliInstance) {
+      return ((KaliInstance) object).get(expr.name); //return the get
+    }
+
+    throw new RuntimeError(expr.name,"Only instances have properties.");
+  }
+
+  @Override
+  public Object visitSetExpr(Expr.Set expr) {
+    Object object = evaluate(expr.object);
+    if (object instanceof KaliInstance) {
+      Object value = evaluate(expr.value);
+      ((KaliInstance)object).set(expr.name, value);
+      return value;
+    }
+
+    throw new CompilationError(expr.name, "Only instances have fields.");
+  }
+
+
+  @Override
   public Void visitFunctionStmt(Stmt.Function stmt){
-    KaliFunction function = new KaliFunction(stmt, environment);
+    KaliFunction function = new KaliFunction(stmt, environment, false);
     environment.define(stmt.name.lexeme, function);
     return null;
   }
@@ -140,7 +233,14 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
   @Override
   public Object visitAssignExpr(Expr.Assign expr) {
     Object value = evaluate(expr.value);
-    environment.assign(expr.name, value);
+    
+    Integer distance = locals.get(expr);
+    if (distance != null) {
+      environment.assignAt(distance, expr.name, value);
+    } else {
+      globals.assign(expr.name, value);
+    }
+
     return value;
   }
 
@@ -244,10 +344,9 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         
       case BANG_EQUAL: return !isEqual(left, right);
       case EQUAL_EQUAL: return isEqual(left, right);
+      default:
+        return null;
     }
-
-    // Unreachable.
-    return null;
   }
 
   @Override
@@ -287,10 +386,9 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
           environment.assign(name, incremented);
           return incremented;
         }
+      default:
+        return null;
     }
-
-    // Unreachable.
-    return null;
   }
 
   @Override
@@ -314,17 +412,31 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
           environment.assign(name, incremented);
         }
         return left1;
+      default:
+        return null;
     }
-    return null;
   }
 
   @Override
   public Object visitVariableExpr(Expr.Variable expr) {
-    return environment.get(expr.name);
+    return lookUpVariable(expr.name, expr);
+  }
+
+  private Object lookUpVariable(Token name, Expr expr) {
+    Integer distance = locals.get(expr);
+    if (distance != null) {
+      return environment.getAt(distance, name.lexeme);
+    } else {
+      return globals.get(name);
+    }
   }
 
   private void execute(Stmt stmt) {
     stmt.accept(this);
+  }
+
+  void resolve(Expr expr, int depth) {
+    locals.put(expr, depth);
   }
 
   void executeBlock(List<Stmt> statements, Environment environment) {

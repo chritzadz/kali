@@ -17,6 +17,10 @@ public class GenerateAst {
 			"Assign : Token name, Expr value",
 			"Binary : Expr left, Token operator, Expr right",
 			"Call : Expr callee, Token paren, List<Expr> arguments",
+			"Get : Expr object, Token name",
+			"Set : Expr object, Token name, Expr value",
+			"This : Token keyword",
+			"Super : Token keyword, Token method",
 			"Grouping : Expr expression",
 			"Literal : Object value",
 			"Logical : Expr left, Token operator, Expr right", //I wonder why Lox implement this seperately OH NVM we want precedence
@@ -27,6 +31,7 @@ public class GenerateAst {
 
 		defineAst(outputDir, "Stmt", Arrays.asList(
 			"Block : List<Stmt> statements",
+			"Class			: Token name, Expr.Variable superclass," + " List<Stmt.Function> methods, List<Var> fields",
       "Expression : Expr expression",
 			"Function		: Token name, Token type, List<Token> params, List<Token> paramTypes," + " List<Stmt> body",
       "Print      : Expr expression",

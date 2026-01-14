@@ -74,10 +74,16 @@ public class Kali {
 		//for each token parse into a list of statements
 		Parser parser = new Parser(tokens);
     List<Stmt> statements = parser.parse();
+		if (hadError) return;
+
+		Resolver resolver = new Resolver(interpreter);//we wanna inject the values in the interpreter right?
+    resolver.resolve(statements);
 
     if (hadError) return; //say this is the compilation
+
 		typeChecker.check(statements);
 		if (hadCompilationError) return;
+		
 		interpreter.interpret(statements);
 	}
 

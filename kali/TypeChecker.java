@@ -1,7 +1,8 @@
 package kali;
 
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import kali.Expr.Assign;
 import kali.Expr.Binary;
@@ -12,6 +13,7 @@ import kali.Expr.Unary;
 import kali.Expr.UnaryPost;
 import kali.Expr.Variable;
 import kali.Stmt.Block;
+import kali.Stmt.Class;
 import kali.Stmt.Expression;
 import kali.Stmt.If;
 import kali.Stmt.Print;
@@ -20,7 +22,8 @@ import kali.Stmt.While;
 
 public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
   private Environment environment = new Environment();
-  private DataType currentReturnType = DataType.NIL;
+  private Object currentReturnType = DataType.NIL;
+  private String currentSuperClassType = null;
 
   void check(List<Stmt> statements){
     try {
@@ -72,17 +75,21 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     if (stmt.type.type == TokenType.TYPE_NUMBER) declaredType = DataType.NUMBER;
     else if (stmt.type.type == TokenType.TYPE_STRING) declaredType = DataType.STRING;
     else if (stmt.type.type == TokenType.TYPE_BOOLEAN) declaredType = DataType.BOOLEAN;
+    else if (stmt.type.type == TokenType.IDENTIFIER) {
+      try {
+        declaredType = environment.get(stmt.type); //get the declared type
+      } catch (RuntimeError error) {
+        throw new CompilationError(stmt.type, "Unknown class type '" + stmt.type.lexeme + "'.");
+      }
+    }
 
     //check invalid assignment
     if (stmt.initializer != null) {
       Object initializerType = evaluate(stmt.initializer);
-      if (declaredType != initializerType) {
+      //check inheritance
+      if (declaredType != initializerType && !checkInheritance(declaredType, initializerType)) {
         throw new CompilationError(stmt.name, "Variable '" + stmt.name.lexeme + "' declared as " + stmt.type.lexeme + " but initialized with " + initializerType + ".");
       }
-    }
-    
-    if (environment.hasCurrent(stmt.name.lexeme)) { //stricter tule in for functions as well.
-      throw new CompilationError(stmt.name, "Variable '" + stmt.name.lexeme + "' already declared in this scope.");
     }
 
     environment.define(stmt.name.lexeme, declaredType);
@@ -112,11 +119,69 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
       throw new CompilationError(error.token, error.getMessage());
     }
 
-    if (value != type){
+    if (value != type && !checkInheritance(type, value)){
       throw new CompilationError(expr.name, "Variable '" + expr.name.lexeme + "' is of type " + type + " but assigned " + value + ".");
     }
 
     return value;
+  }
+
+  @Override
+  public Object visitGetExpr(Expr.Get expr) {
+    Object object = evaluate(expr.object);
+    if (object instanceof KaliClass) {
+      KaliClass klass = (KaliClass) object;
+      
+      Object fieldType = klass.findField(expr.name.lexeme);
+      if (fieldType != null) return fieldType;
+
+      KaliFunction method = klass.findMethod(expr.name.lexeme);
+      if (method != null) return method;
+      
+      throw new CompilationError(expr.name, "Undefined property '" + expr.name.lexeme + "'.");
+    }
+    
+    throw new CompilationError(expr.name, "Only instances have properties.");
+  }
+
+  @Override
+  public Void visitSetExpr(Expr.Set expr) {
+    Object object = evaluate(expr.object);
+    if (object instanceof KaliClass) {
+      KaliClass klass = (KaliClass) object;
+      Object valueType = evaluate(expr.value);
+      
+      Object expectedType = klass.findField(expr.name.lexeme);
+      
+      if (expectedType == null) {
+          throw new CompilationError(expr.name, "Undefined field '" + expr.name.lexeme + "'.");
+      }
+
+      if (valueType != expectedType && !checkInheritance(expectedType, valueType)){
+        throw new CompilationError(expr.name, "Field '" + expr.name.lexeme + "' is of type " + expectedType + " but assigned " + valueType + ".");
+      }
+      
+      return null;
+    }
+    throw new CompilationError(expr.name, "Only instances have fields.");
+  }
+
+  @Override
+  public Object visitThisExpr(Expr.This expr) {
+    try {
+      return environment.get(expr.keyword);
+    } catch (RuntimeError error) {
+      throw new CompilationError(expr.keyword, error.getMessage());
+    }
+  }
+
+  @Override
+  public Object visitSuperExpr(Expr.Super expr) {
+    try {
+      return environment.get(expr.keyword);
+    } catch (RuntimeError error) {
+      throw new CompilationError(expr.keyword, error.getMessage());
+    }
   }
 
   @Override
@@ -144,10 +209,9 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
           throw new CompilationError(expr.operator, "Operands must be the same type.");
         }
         return DataType.BOOLEAN;
+      default:
+        return DataType.NIL;
     }
-
-      // Unreachable.
-      return DataType.NIL;
   }
 
   @Override
@@ -174,14 +238,22 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
         return checkNumberOperand(expr.operator, right);
       case BANG:
         return DataType.BOOLEAN;
+      default:
+        return DataType.NIL;
     }
-
-    return DataType.NIL;
   }
 
   @Override
   public Object visitCallExpr(Expr.Call expr) {
     Object callee = evaluate(expr.callee);
+
+    if (callee instanceof KaliClass) {
+      KaliClass klass = (KaliClass)callee;
+      if (expr.arguments.size() != klass.arity()) {
+        throw new CompilationError(expr.paren, "Expected " + klass.arity() + " arguments but got " + expr.arguments.size() + ".");
+      }
+      return klass;
+    }
 
     if (!(callee instanceof KaliFunction)) {
       // since the function name will be set as an identifier, making sure that an identifier that have callee == null is just a variable declaration. cannot be called.
@@ -199,12 +271,19 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
         Token paramTypeToken = function.declaration.paramTypes.get(i);
         
         //check dataytype of each parameter to its expected parent.
-        DataType expectedType = DataType.NIL;
+        Object expectedType = DataType.NIL;
         if (paramTypeToken.type == TokenType.TYPE_NUMBER) expectedType = DataType.NUMBER;
         else if (paramTypeToken.type == TokenType.TYPE_STRING) expectedType = DataType.STRING;
         else if (paramTypeToken.type == TokenType.TYPE_BOOLEAN) expectedType = DataType.BOOLEAN;
+        else if (paramTypeToken.type == TokenType.IDENTIFIER) {
+            try {
+                expectedType = environment.get(paramTypeToken);
+            } catch (RuntimeError e) {
+                throw new CompilationError(paramTypeToken, "Unknown param type '" + paramTypeToken.lexeme + "'.");
+            }
+        }
 
-        if (argType != expectedType) {
+        if (argType != expectedType && !checkInheritance(expectedType, argType)) {
             throw new CompilationError(expr.paren, "Argument " + (i+1) + " expects " + expectedType + " but got " + argType + ".");
         }
     }
@@ -214,21 +293,40 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     if (returnTypeToken.type == TokenType.TYPE_NUMBER) return DataType.NUMBER;
     else if (returnTypeToken.type == TokenType.TYPE_STRING) return DataType.STRING;
     else if (returnTypeToken.type == TokenType.TYPE_BOOLEAN) return DataType.BOOLEAN;
+    else if (returnTypeToken.type == TokenType.IDENTIFIER) {
+      try {
+        return environment.get(returnTypeToken);
+      } catch (RuntimeError e) {
+        throw new CompilationError(returnTypeToken, "Unknown return type '" + returnTypeToken.lexeme + "'.");
+      }
+    }
     
     return DataType.NIL;
   }
 
   @Override
   public Void visitFunctionStmt(Stmt.Function stmt){
-    KaliFunction function = new KaliFunction(stmt);
+    KaliFunction function = new KaliFunction(stmt, environment, false);
     environment.define(stmt.name.lexeme, function);
 
+    checkFunction(stmt);
+    return null;
+  }
+
+  private void checkFunction(Stmt.Function stmt) {
     //since it is a tree-like structure, save the "parent" type to ref
-    DataType enclosingFunctionType = currentReturnType;
+    Object enclosingFunctionType = currentReturnType;
     
     if (stmt.type.type == TokenType.TYPE_NUMBER) currentReturnType = DataType.NUMBER;
     else if (stmt.type.type == TokenType.TYPE_STRING) currentReturnType = DataType.STRING;
     else if (stmt.type.type == TokenType.TYPE_BOOLEAN) currentReturnType = DataType.BOOLEAN;
+    else if (stmt.type.type == TokenType.IDENTIFIER) {
+      try {
+        currentReturnType = environment.get(stmt.type);
+      } catch (RuntimeError error) {
+        throw new CompilationError(stmt.type, "Unknown class type '" + stmt.type.lexeme + "'.");
+      }
+    }
     else currentReturnType = DataType.NIL;
 
     Environment previous = this.environment;
@@ -253,7 +351,6 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
         this.environment = previous;
         currentReturnType = enclosingFunctionType;
     }
-    return null;
   }
 
   @Override
@@ -262,7 +359,7 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     Object valueType = DataType.NIL;
     if (stmt.value != null) valueType = evaluate(stmt.value);
 
-    if (valueType != currentReturnType){
+    if (valueType != currentReturnType && !checkInheritance(currentReturnType, valueType)){
       throw new CompilationError(stmt.keyword, "Return type mismatch. Expected " + currentReturnType + " but got " + valueType + ".");
     }
 
@@ -287,6 +384,61 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     } catch (RuntimeError error) {
       throw new CompilationError(error.token, error.getMessage());
     }
+  }
+
+  @Override
+  public Void visitClassStmt(Class stmt) {
+    Object superclass = null;
+    if (stmt.superclass != null){
+      superclass = evaluate(stmt.superclass);
+      if (!(superclass instanceof KaliClass)){
+        throw new CompilationError(stmt.superclass.name, "Superclass must be a class.");
+      }
+      currentSuperClassType = ((KaliClass)superclass).name;
+    }
+
+    environment.define(stmt.name.lexeme, null);
+
+    Map<String, KaliFunction> methods = new HashMap<>();
+    for (Stmt.Function method : stmt.methods) {
+      boolean isInitializer = method.name.lexeme.equals(stmt.name.lexeme);
+      KaliFunction function = new KaliFunction(method, environment, isInitializer);
+      methods.put(method.name.lexeme, function);
+    }
+
+    Map<String, Object> fields = new HashMap<>();
+    for (Stmt.Var field : stmt.fields) {
+      Object type = DataType.NIL;
+      if (field.type.type == TokenType.TYPE_NUMBER) type = DataType.NUMBER;
+      else if (field.type.type == TokenType.TYPE_STRING) type = DataType.STRING;
+      else if (field.type.type == TokenType.TYPE_BOOLEAN) type = DataType.BOOLEAN;
+      else if (field.type.type == TokenType.IDENTIFIER) {
+         try {
+            type = environment.get(field.type); 
+         } catch (RuntimeError error) {
+            throw new CompilationError(field.type, "Unknown type.");
+         }
+      }
+      fields.put(field.name.lexeme, type);
+    }
+
+    KaliClass klass = new KaliClass(stmt.name.lexeme, (KaliClass)superclass, methods, fields);
+    environment.assign(stmt.name, klass);
+
+    // Create a new scope for the class to define 'this'
+    Environment previous = this.environment;
+    this.environment = new Environment(environment);
+    this.environment.define("this", klass);
+
+    try {
+      for (Stmt.Function method : stmt.methods) {
+        checkFunction(method);
+      }
+    } finally {
+      this.environment = previous;
+    }
+
+    return null;
   }
   
   private void execute(Stmt stmt){
@@ -314,10 +466,10 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     throw new CompilationError(operator, "Operands must be numbers.");
   }
 
-  private Object checkStringOperands(Token operator, Object left, Object right) throws CompilationError {
-    if (left == DataType.STRING && right == DataType.STRING) return DataType.STRING;
-    throw new CompilationError(operator, "Operands must be strings.");
-  }
+  // private Object checkStringOperands(Token operator, Object left, Object right) throws CompilationError {
+  //   if (left == DataType.STRING && right == DataType.STRING) return DataType.STRING;
+  //   throw new CompilationError(operator, "Operands must be strings.");
+  // }
 
   private Object checkStringNumberOperands(Token operator, Object left, Object right) throws CompilationError {
     if (left == DataType.STRING && right == DataType.STRING)
@@ -351,6 +503,18 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
   private Object checkConditionBoolean(Object condition) throws CompilationError{
     if (condition == DataType.BOOLEAN) return null;
     throw new CompilationError(null, "Condition must be booleans.");
+  }
+
+  private boolean checkInheritance(Object declaredType, Object initializerType){
+    if (declaredType instanceof KaliClass && initializerType instanceof KaliClass){
+      KaliClass current = (KaliClass)initializerType;
+      //this seems dirty but this is the most i could think of how to implement. for the chaining process
+      while(current != null){
+        if (current.equals(declaredType)) return true;
+        current = current.superclass;
+      }
+    }
+    return false;
   }
 
   void executeBlock(List<Stmt> statements, Environment environment) {

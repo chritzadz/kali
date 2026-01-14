@@ -26,8 +26,25 @@ public class Parser {
 
   private Stmt declaration() {
     try {
+      if (match(TokenType.CLASS)) {
+        return classDeclaration();
+      }
+      
+      //check primitive type
       if (match(TokenType.TYPE_NUMBER, TokenType.TYPE_STRING, TokenType.TYPE_BOOLEAN)) {
         Token type = previous();
+        Token name = consume(TokenType.IDENTIFIER, "Expect name.");
+
+        if (check(TokenType.LEFT_PAREN)) {
+          return functionDeclaration(type, name);
+        } else {
+          return varDeclaration(type, name);
+        }
+      }
+
+      // check custom type (CLASSES)
+      if (check(TokenType.IDENTIFIER) && checkNext(TokenType.IDENTIFIER)) { 
+        Token type = advance();
         Token name = consume(TokenType.IDENTIFIER, "Expect name.");
 
         if (check(TokenType.LEFT_PAREN)) {
@@ -43,6 +60,41 @@ public class Parser {
       return null;
     }
   }
+
+  private Stmt classDeclaration() {
+    Token name = consume(TokenType.IDENTIFIER, "Expect class name.");
+
+    //check inheritance
+    Expr.Variable superclass = null;
+    if (match(TokenType.EXTENDS)){
+      consume(TokenType.IDENTIFIER, "Expect exuperclass name");
+      superclass = new Expr.Variable(previous());
+    }
+
+    consume(TokenType.LEFT_BRACE, "Expect '{' before class body.");
+
+    List<Stmt.Function> methods = new ArrayList<>();
+    List<Stmt.Var> fields = new ArrayList<>();
+    while (!check(TokenType.RIGHT_BRACE) && !isAtEnd()) {
+      //manually derive methodss
+      if (match(TokenType.TYPE_NUMBER, TokenType.TYPE_STRING, TokenType.TYPE_BOOLEAN, TokenType.IDENTIFIER)) {
+        Token type = previous();
+        Token memberName = consume(TokenType.IDENTIFIER, "Expect member name.");
+        
+        if (check(TokenType.LEFT_PAREN)) {
+          methods.add((Stmt.Function)functionDeclaration(type, memberName));
+        } else {
+          fields.add((Stmt.Var)varDeclaration(type, memberName));
+        }
+      } else {
+        throw error(peek(), "Expect member declaration.");
+      }
+    }
+
+    consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.");
+    return new Stmt.Class(name, superclass, methods, fields);
+  }
+
 
   private Stmt functionDeclaration(Token type, Token name) {
     consume(TokenType.LEFT_PAREN, "Expect '(' after function name.");
@@ -225,6 +277,9 @@ public class Parser {
       if (expr instanceof Expr.Variable) {
         Token name = ((Expr.Variable)expr).name;
         return new Expr.Assign(name, value);
+      } else if (expr instanceof Expr.Get) {
+        Expr.Get get = (Expr.Get)expr;
+        return new Expr.Set(get.object, get.name, value); //(object, name, and the value it is reassigning)
       }
 
       error(equals, "Invalid assignment target."); 
@@ -337,12 +392,15 @@ public class Parser {
     return new Expr.Call(callee, paren, arguments);
   }
 
-  private Expr call() {
+  private Expr call() { //we check callable right, if it  is not a function then it is probably a class identifier
     Expr expr = primary();
 
     while (true) {
       if (match(TokenType.LEFT_PAREN)) { //opening of functions;
         expr = finishCall(expr);
+      } else if (match(TokenType.DOT)) {
+        Token name = consume(TokenType.IDENTIFIER,"Expect property name after '.'."); //fields name in class scope
+        expr = new Expr.Get(expr, name);
       } else {
         break;
       }
@@ -359,6 +417,15 @@ public class Parser {
     if (match(TokenType.NUMBER, TokenType.STRING)) {
       return new Expr.Literal(previous().literal);
     }
+
+    if (match(TokenType.SUPER)) {
+      Token keyword = previous();
+      consume(TokenType.DOT, "Expect '.' after 'super'.");
+      Token method = consume(TokenType.IDENTIFIER, "Expect superclass method name.");
+      return new Expr.Super(keyword, method);
+    }
+    if (match(TokenType.THIS)) return new Expr.This(previous());
+    
 
     if (match(TokenType.IDENTIFIER)) {
       return new Expr.Variable(previous());
@@ -390,9 +457,9 @@ public class Parser {
         case PRINT:
         case RETURN:
           return;
+        default:
+          advance();
       }
-
-      advance();
     }
   }
 
@@ -431,6 +498,12 @@ public class Parser {
   private boolean check(TokenType type) {
     if (isAtEnd()) return false;
     return peek().type == type;
+  }
+
+  private boolean checkNext(TokenType type) {
+    if (isAtEnd()) return false;
+    if (current + 1 >= tokens.size()) return false;
+    return tokens.get(current + 1).type == type;
   }
 
   /**
