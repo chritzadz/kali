@@ -5,18 +5,28 @@ import java.util.Map;
 
 class KaliClass implements KaliCallable{
   final String name;
+  final KaliClass superclass;
   final Map<String, KaliFunction> methods;
   final Map<String, Object> fields;
 
-  KaliClass(String name, Map<String, KaliFunction> methods, Map<String, Object> fields) {
+  KaliClass(String name, KaliClass superclass, Map<String, KaliFunction> methods, Map<String, Object> fields) {
     this.name = name;
+    this.superclass = superclass;
     this.methods = methods;
     this.fields = fields;
   }
 
+  /**
+   * here by importance  precedence check the current method first.
+   * @param name
+   * @return
+   */
   public KaliFunction findMethod(String name){
     if (methods.containsKey(name)) {
       return methods.get(name);
+    }
+    if (superclass != null) {
+      return superclass.findMethod(name); //check if it exists
     }
     return null;
   }

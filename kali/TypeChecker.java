@@ -23,6 +23,7 @@ import kali.Stmt.While;
 public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
   private Environment environment = new Environment();
   private Object currentReturnType = DataType.NIL;
+  private String currentSuperClassType = null;
 
   void check(List<Stmt> statements){
     try {
@@ -76,7 +77,7 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     else if (stmt.type.type == TokenType.TYPE_BOOLEAN) declaredType = DataType.BOOLEAN;
     else if (stmt.type.type == TokenType.IDENTIFIER) {
       try {
-        declaredType = environment.get(stmt.type); //get the  decalred type
+        declaredType = environment.get(stmt.type); //get the declared type
       } catch (RuntimeError error) {
         throw new CompilationError(stmt.type, "Unknown class type '" + stmt.type.lexeme + "'.");
       }
@@ -85,7 +86,8 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     //check invalid assignment
     if (stmt.initializer != null) {
       Object initializerType = evaluate(stmt.initializer);
-      if (declaredType != initializerType) {
+      //check inheritance
+      if (declaredType != initializerType && !checkInheritance(declaredType, initializerType)) {
         throw new CompilationError(stmt.name, "Variable '" + stmt.name.lexeme + "' declared as " + stmt.type.lexeme + " but initialized with " + initializerType + ".");
       }
     }
@@ -117,7 +119,7 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
       throw new CompilationError(error.token, error.getMessage());
     }
 
-    if (value != type){
+    if (value != type && !checkInheritance(type, value)){
       throw new CompilationError(expr.name, "Variable '" + expr.name.lexeme + "' is of type " + type + " but assigned " + value + ".");
     }
 
@@ -155,7 +157,7 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
           throw new CompilationError(expr.name, "Undefined field '" + expr.name.lexeme + "'.");
       }
 
-      if (valueType != expectedType){
+      if (valueType != expectedType && !checkInheritance(expectedType, valueType)){
         throw new CompilationError(expr.name, "Field '" + expr.name.lexeme + "' is of type " + expectedType + " but assigned " + valueType + ".");
       }
       
@@ -166,6 +168,15 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
 
   @Override
   public Object visitThisExpr(Expr.This expr) {
+    try {
+      return environment.get(expr.keyword);
+    } catch (RuntimeError error) {
+      throw new CompilationError(expr.keyword, error.getMessage());
+    }
+  }
+
+  @Override
+  public Object visitSuperExpr(Expr.Super expr) {
     try {
       return environment.get(expr.keyword);
     } catch (RuntimeError error) {
@@ -272,7 +283,7 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
             }
         }
 
-        if (argType != expectedType) {
+        if (argType != expectedType && !checkInheritance(expectedType, argType)) {
             throw new CompilationError(expr.paren, "Argument " + (i+1) + " expects " + expectedType + " but got " + argType + ".");
         }
     }
@@ -348,7 +359,7 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     Object valueType = DataType.NIL;
     if (stmt.value != null) valueType = evaluate(stmt.value);
 
-    if (valueType != currentReturnType){
+    if (valueType != currentReturnType && !checkInheritance(currentReturnType, valueType)){
       throw new CompilationError(stmt.keyword, "Return type mismatch. Expected " + currentReturnType + " but got " + valueType + ".");
     }
 
@@ -377,6 +388,15 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
 
   @Override
   public Void visitClassStmt(Class stmt) {
+    Object superclass = null;
+    if (stmt.superclass != null){
+      superclass = evaluate(stmt.superclass);
+      if (!(superclass instanceof KaliClass)){
+        throw new CompilationError(stmt.superclass.name, "Superclass must be a class.");
+      }
+      currentSuperClassType = ((KaliClass)superclass).name;
+    }
+
     environment.define(stmt.name.lexeme, null);
 
     Map<String, KaliFunction> methods = new HashMap<>();
@@ -402,7 +422,7 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
       fields.put(field.name.lexeme, type);
     }
 
-    KaliClass klass = new KaliClass(stmt.name.lexeme, methods, fields);
+    KaliClass klass = new KaliClass(stmt.name.lexeme, (KaliClass)superclass, methods, fields);
     environment.assign(stmt.name, klass);
 
     // Create a new scope for the class to define 'this'
@@ -483,6 +503,18 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
   private Object checkConditionBoolean(Object condition) throws CompilationError{
     if (condition == DataType.BOOLEAN) return null;
     throw new CompilationError(null, "Condition must be booleans.");
+  }
+
+  private boolean checkInheritance(Object declaredType, Object initializerType){
+    if (declaredType instanceof KaliClass && initializerType instanceof KaliClass){
+      KaliClass current = (KaliClass)initializerType;
+      //this seems dirty but this is the most i could think of how to implement. for the chaining process
+      while(current != null){
+        if (current.equals(declaredType)) return true;
+        current = current.superclass;
+      }
+    }
+    return false;
   }
 
   void executeBlock(List<Stmt> statements, Environment environment) {

@@ -5,6 +5,7 @@ import kali.Expr.Call;
 import kali.Expr.Get;
 import kali.Expr.Logical;
 import kali.Expr.Set;
+import kali.Expr.Super;
 import kali.Expr.This;
 import kali.Expr.Variable;
 
@@ -101,6 +102,12 @@ class AstPrinter implements Expr.Visitor<String> {
   public String visitThisExpr(This expr) {
     // TODO Auto-generated method stub
     throw new UnsupportedOperationException("Unimplemented method 'visitThisExpr'");
+  }
+
+  @Override
+  public String visitSuperExpr(Super expr) {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'visitSuperExpr'");
   }
 }
 

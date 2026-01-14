@@ -58,7 +58,20 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
   @Override
   public Void visitClassStmt(Stmt.Class stmt) {
+    Object superclass = null;
+    if (stmt.superclass != null){
+      superclass = evaluate(stmt.superclass);
+      if (!(superclass instanceof KaliClass)){
+        throw new RuntimeError(stmt.superclass.name, "Superclass must be a class.");
+      }
+    }
+
     environment.define(stmt.name.lexeme, null);
+
+    if (stmt.superclass != null) {
+      environment = new Environment(environment); // create new nevironment for super variable, corresponding to the Kali Class it inherits
+      environment.define("super", superclass);
+    }
 
     Map<String, KaliFunction> methods = new HashMap<>();
     for (Stmt.Function method : stmt.methods) {
@@ -67,8 +80,12 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
       methods.put(method.name.lexeme, function); //i just got whjy we create a seperate instance for class, since class is a whole new main environemtn seperated from the main
     }
+    KaliClass klass = new KaliClass(stmt.name.lexeme, (KaliClass)superclass, methods, new HashMap<>());
 
-    KaliClass klass = new KaliClass(stmt.name.lexeme, methods, new HashMap<>());
+    if (superclass != null) {
+      environment = environment.enclosing;
+    }
+
     environment.assign(stmt.name, klass);
     return null;
   }
@@ -76,6 +93,19 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
   @Override
   public Object visitThisExpr(Expr.This expr) {
     return lookUpVariable(expr.keyword, expr);
+  }
+
+  @Override
+  public Object visitSuperExpr(Expr.Super expr) {
+    int distance = locals.get(expr);
+    KaliClass superclass = (KaliClass)environment.getAt(distance, "super");
+    KaliInstance object = (KaliInstance)environment.getAt(distance - 1, "this"); //this is inbound right insiide the env we store super, so manually insert
+    KaliFunction method = superclass.findMethod(expr.method.lexeme);
+
+    if (method == null) {
+      throw new RuntimeError(expr.method, "Undefined property '" + expr.method.lexeme + "'.");
+    }
+    return method.bind(object);
   }
 
   @Override

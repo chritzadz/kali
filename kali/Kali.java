@@ -76,8 +76,9 @@ public class Kali {
     List<Stmt> statements = parser.parse();
 		if (hadError) return;
 
-		Resolver resolver = new Resolver(interpreter);
+		Resolver resolver = new Resolver(interpreter);//we wanna inject the values in the interpreter right?
     resolver.resolve(statements);
+
     if (hadError) return; //say this is the compilation
 
 		typeChecker.check(statements);

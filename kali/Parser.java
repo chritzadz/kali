@@ -63,6 +63,14 @@ public class Parser {
 
   private Stmt classDeclaration() {
     Token name = consume(TokenType.IDENTIFIER, "Expect class name.");
+
+    //check inheritance
+    Expr.Variable superclass = null;
+    if (match(TokenType.EXTENDS)){
+      consume(TokenType.IDENTIFIER, "Expect exuperclass name");
+      superclass = new Expr.Variable(previous());
+    }
+
     consume(TokenType.LEFT_BRACE, "Expect '{' before class body.");
 
     List<Stmt.Function> methods = new ArrayList<>();
@@ -84,8 +92,7 @@ public class Parser {
     }
 
     consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.");
-
-    return new Stmt.Class(name, methods, fields);
+    return new Stmt.Class(name, superclass, methods, fields);
   }
 
 
@@ -411,7 +418,14 @@ public class Parser {
       return new Expr.Literal(previous().literal);
     }
 
+    if (match(TokenType.SUPER)) {
+      Token keyword = previous();
+      consume(TokenType.DOT, "Expect '.' after 'super'.");
+      Token method = consume(TokenType.IDENTIFIER, "Expect superclass method name.");
+      return new Expr.Super(keyword, method);
+    }
     if (match(TokenType.THIS)) return new Expr.This(previous());
+    
 
     if (match(TokenType.IDENTIFIER)) {
       return new Expr.Variable(previous());

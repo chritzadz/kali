@@ -1,56 +1,16 @@
-// 1. Basic Variables & Typing
-number a = 10;
-string b = "Hello Kali";
-boolean c = true;
-
-print a;
-print b;
-print !c;
-
-// 2. Control Flow
-if (a > 5) {
-  print "a is greater than 5";
-} else {
-  print "a is small";
-}
-
-number count = 0;
-while (count < 3) {
-  print "Count is: " + count;
-  count = count + 1;
-}
-
-// 3. Functions with Types
-number add(number x, number y) {
-  return x + y;
-}
-
-print "5 + 7 = " + add(5, 7);
-
-// 4. Classes & Constructors (The new feature!)
-class Bagel {
-  string flavor;
-  boolean toasted;
-
-  // Constructor named after the class (Java-style)
-  Bagel Bagel(string f, boolean t) {
-    this.flavor = f;
-    this.toasted = t;
-    // Implicitly returns 'this'
-  }
-
-  string describe() {
-    string state = "raw";
-    if (this.toasted) {
-      state = "toasted";
-    }
-    return "A " + state + " " + this.flavor + " bagel.";
+class Doughnut {
+  number cook() {
+    print "Fry until golden brown.";
+    return 0;
   }
 }
 
-// 5. Instantiation & Method Calls
-Bagel myBreakfast = Bagel("everything", true);
-print myBreakfast.describe();
+class BostonCream extends Doughnut {
+  number cook() {
+    print "Pipe full of custard and coat with chocolate.";
+    return 0;
+  }
+}
 
-Bagel plain = Bagel("plain", false);
-print plain.describe();
+Doughnut d = BostonCream();
+d.cook();

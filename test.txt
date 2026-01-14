@@ -1,20 +1,16 @@
-class Bagel {
-  string flavor;
-  boolean toasted;
-
-  Bagel Bagel(string f, boolean t) {
-    this.flavor = f;
-    this.toasted = t;
-  }
-
-  string describe() {
-    string state = "raw";
-    if (this.toasted) {
-      state = "toasted";
-    }
-    return "A " + state + " " + this.flavor + " bagel.";
+class Doughnut {
+  number cook() {
+    print "Fry until golden brown.";
+    return 0;
   }
 }
 
-Bagel myBreakfast = Bagel("everything", true);
-print(myBreakfast.describe());
+class BostonCream extends Doughnut {
+  number cook() {
+    print "Pipe full of custard and coat with chocolate.";
+    return 0;
+  }
+}
+
+Doughnut d = BostonCream();
+d.cook();
