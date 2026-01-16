@@ -8,22 +8,28 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 
+/**
+ * The main entry point for the Kali language interpreter.
+ * Handles script execution, REPL mode, and the core compilation/execution pipeline.
+ */
 public class Kali {
-	static boolean hadError = false;
-	static boolean hadRuntimeError = false;
-	static boolean hadCompilationError = false;
-	private static final Interpreter interpreter = new Interpreter();
-	private static final TypeChecker typeChecker = new TypeChecker();
+  // Error state flags
+  static boolean hadError = false;
+  static boolean hadRuntimeError = false;
+  static boolean hadCompilationError = false;
 
+  // Language subsystems
+  private static final Interpreter interpreter = new Interpreter();
+  private static final TypeChecker typeChecker = new TypeChecker();
 
-	/**
-	 * Iterate through each file only 'process' one file. or if there is no file args, then it is a prompt
-	 * The file will act as the file with the code to run
-	 * @param args is the number for files (each files is a long string)
-	*/
+  /**
+   * Main entry point.
+   * @param args Command line arguments. [0] is the path to a script file.
+   * @throws IOException If reading input fails.
+   */
   public static void main(String[] args) throws IOException {
     if (args.length > 1) {
-      System.out.println("Usage: jlox [script]");
+      System.out.println("Usage: kali [script]");
       System.exit(64);
     } else if (args.length == 1) {
       runFile(args[0]);
@@ -32,66 +38,80 @@ public class Kali {
     }
   }
 
-	/**
-	 * Parse to bytes, and then processed to a string by run()
-	 * @param path is a string path to the file that will be interpreted by Lox
-	*/
-	private static void runFile(String path) throws IOException {
-		byte[] bytes = Files.readAllBytes(Paths.get(path));
-		run(new String(bytes, Charset.defaultCharset()));
-		if (hadError) System.exit(65);
-		if (hadRuntimeError) System.exit(70);
-		if (hadCompilationError) System.exit(70);
-	}
+  /**
+   * Reads and executes a source file.
+   * @param path Path to the .kali file.
+   * @throws IOException If file reading fails.
+   */
+  private static void runFile(String path) throws IOException {
+    if (!path.endsWith(".kali")) {
+      System.err.println("Error: source file must end with .kali");
+      System.exit(65);
+    }
 
-	/**
-	 * Accepts the commands given by user, and process
-	*/
-	private static void runPrompt() throws IOException {
-		InputStreamReader input = new InputStreamReader(System.in);
-		BufferedReader reader = new BufferedReader(input);
+    byte[] bytes = Files.readAllBytes(Paths.get(path));
+    run(new String(bytes, Charset.defaultCharset()));
 
-		for (;;) {
-			System.out.print("> ");
-			String line = reader.readLine();
-			if (line == null) break;
-			run(line);
-			hadError = false;
-		}
-	}
+    if (hadError) System.exit(65);
+    if (hadRuntimeError) System.exit(70);
+    if (hadCompilationError) System.exit(70);
+  }
 
-	/**
-	 * First scanner will act to iterate through the source string (code)
-	 * Tokenize all of the code by the user with the Scanner class. and then calling scanToken()
-	 * After being able to tokenize, parse using the Parse class to get an Expression of the whole code.
-	 * @param source is the one liner string of all the code.
-	 */
-	private static void run(String source){
-		//Tokenize every code into its corresponding type
-		Scanner scanner = new Scanner(source);
-		List<Token> tokens = scanner.scanTokens();
+  /**
+   * Starts the interactive REPL (Read-Eval-Print Loop).
+   * @throws IOException If input reading fails.
+   */
+  private static void runPrompt() throws IOException {
+    InputStreamReader input = new InputStreamReader(System.in);
+    BufferedReader reader = new BufferedReader(input);
 
-		//for each token parse into a list of statements
-		Parser parser = new Parser(tokens);
+    for (;;) {
+      System.out.print("> ");
+      String line = reader.readLine();
+      if (line == null) break;
+      run(line);
+      hadError = false;
+    }
+  }
+
+  /**
+   * Core pipeline: Scan -> Parse -> Resolve -> Type Check -> Interpret.
+   * @param source The source code string.
+   */
+  private static void run(String source) {
+    // 1. Scanning (Lexical Analysis)
+    Scanner scanner = new Scanner(source);
+    List<Token> tokens = scanner.scanTokens();
+
+    // 2. Parsing (AST Generation)
+    Parser parser = new Parser(tokens);
     List<Stmt> statements = parser.parse();
-		if (hadError) return;
 
-		Resolver resolver = new Resolver(interpreter);//we wanna inject the values in the interpreter right?
+    // Stop if scanning or parsing failed
+    if (hadError) return;
+
+    // 3. Resolution (Variable binding)
+    Resolver resolver = new Resolver(interpreter);
     resolver.resolve(statements);
 
-    if (hadError) return; //say this is the compilation
+    // Stop if resolution failed
+    if (hadError) return;
 
-		typeChecker.check(statements);
-		if (hadCompilationError) return;
-		
-		interpreter.interpret(statements);
-	}
+    // 4. Type Checking (Static Analysis)
+    typeChecker.check(statements);
+    if (hadCompilationError) return;
 
-	static void error(int line, String message) {
-		report(line, "", message);
-	}
+    // 5. Interpretation (Execution)
+    interpreter.interpret(statements);
+  }
 
-	static void error(Token token, String message) {
+  // --- Error Reporting Utils ---
+
+  static void error(int line, String message) {
+    report(line, "", message);
+  }
+
+  static void error(Token token, String message) {
     if (token.type == TokenType.EOF) {
       report(token.line, " at end", message);
     } else {
@@ -99,18 +119,18 @@ public class Kali {
     }
   }
 
-	static void runtimeError(RuntimeError error) {
+  static void runtimeError(RuntimeError error) {
     System.err.println(error.getMessage() + "\n[line " + error.token.line + "]");
     hadRuntimeError = true;
   }
 
-	static void compilationError(CompilationError error) {
+  static void compilationError(CompilationError error) {
     System.err.println(error.getMessage() + "\n[line " + error.token.line + "]");
     hadCompilationError = true;
   }
 
-	private static void report(int line, String where, String message) {
-		System.err.println("[line " + line + "] Error" + where + ": " + message);
-		hadError = true;
-	}
+  private static void report(int line, String where, String message) {
+    System.err.println("[line " + line + "] Error" + where + ": " + message);
+    hadError = true;
+  }
 }

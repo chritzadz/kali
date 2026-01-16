@@ -5,90 +5,127 @@ import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * A command-line tool to generate the Abstract Syntax Tree (AST) classes for the Kali language.
+ *
+ * This tool automates the creation of the boilerplate code required for the AST, including:
+ * 1. The base abstract classes (Expr, Stmt).
+ * 2. The standard Visitor interface for each tree.
+ * 3. The specific subclasses for each AST node (e.g., Binary, Grouping, Literal).
+ *
+ * Usage:
+ *   java tool.GenerateAst <output_directory>
+ */
 public class GenerateAst {
+
+  /**
+   * Main entry point for the AST generation tool.
+   *
+   * @param args Command line arguments. Expects exactly one argument: the output directory path.
+   * @throws IOException If there is an error writing the files.
+   */
   public static void main(String[] args) throws IOException {
     if (args.length != 1) {
       System.err.println("Usage: generate_ast <output directory>");
       System.exit(64);
     }
     String outputDir = args[0];
-		//This defines the precedence as well...
-    defineAst(outputDir, "Expr", Arrays.asList(
-			"Assign : Token name, Expr value",
-			"Binary : Expr left, Token operator, Expr right",
-			"Call : Expr callee, Token paren, List<Expr> arguments",
-			"Get : Expr object, Token name",
-			"Set : Expr object, Token name, Expr value",
-			"This : Token keyword",
-			"Super : Token keyword, Token method",
-			"Grouping : Expr expression",
-			"Literal : Object value",
-			"Logical : Expr left, Token operator, Expr right", //I wonder why Lox implement this seperately OH NVM we want precedence
-			"Unary : Token operator, Expr right",
-			"UnaryPost : Expr left, Token operator",
-			"Variable	: Token name"
-		));
 
-		defineAst(outputDir, "Stmt", Arrays.asList(
-			"Block : List<Stmt> statements",
-			"Class			: Token name, Expr.Variable superclass," + " List<Stmt.Function> methods, List<Var> fields",
+    // Define the Expression AST (Expr.java)
+    defineAst(outputDir, "Expr", Arrays.asList(
+      "Assign    : Token name, Expr value",
+      "Binary    : Expr left, Token operator, Expr right",
+      "Call      : Expr callee, Token paren, List<Expr> arguments",
+      "Get       : Expr object, Token name",
+      "Set       : Expr object, Token name, Expr value",
+      "This      : Token keyword",
+      "Super     : Token keyword, Token method",
+      "Grouping  : Expr expression",
+      "Literal   : Object value",
+      "Logical   : Expr left, Token operator, Expr right",
+      "Unary     : Token operator, Expr right",
+      "UnaryPost : Expr left, Token operator",
+      "Variable  : Token name"
+    ));
+
+    // Define the Statement AST (Stmt.java)
+    defineAst(outputDir, "Stmt", Arrays.asList(
+      "Block      : List<Stmt> statements",
+      "Class      : Token name, Expr.Variable superclass, List<Stmt.Function> methods, List<Var> fields",
       "Expression : Expr expression",
-			"Function		: Token name, Token type, List<Token> params, List<Token> paramTypes," + " List<Stmt> body",
+      "Function   : Token name, Token type, List<Token> params, List<Token> paramTypes, List<Stmt> body",
+      "If         : Expr condition, Stmt thenBranch, Stmt elseBranch",
       "Print      : Expr expression",
-			"Return			: Token keyword, Expr value",
-			"Var				: Token name, Token type, Expr initializer",
-			"While			: Expr condition, Stmt body",
-			"If					: Expr condition, Stmt thenBranch," + " Stmt elseBranch"
+      "Return     : Token keyword, Expr value",
+      "Var        : Token name, Token type, Expr initializer",
+      "While      : Expr condition, Stmt body"
     ));
   }
 
-	private static void defineAst(String outputDir, String baseName, List<String> types) throws IOException {
-		String path = outputDir + "/" + baseName + ".java"; //since we compile to java
-		PrintWriter writer = new PrintWriter(path, "UTF-8");
-		writer.println("package kali;");
-		writer.println();
-		writer.println("import kali.Token;");
-		writer.println("import java.util.List;");
-		writer.println();
-		writer.println("abstract class " + baseName + " {");
+  /**
+   * Generates a complete AST file (Expr.java or Stmt.java) including the base class, visitor, and subclasses.
+   *
+   * @param outputDir The directory where the file should be generated.
+   * @param baseName  The name of the base class (e.g., "Expr" or "Stmt").
+   * @param types     A list of strings defining the types and their fields (e.g., "Binary : Expr left, Token operator...").
+   * @throws IOException If the file cannot be written.
+   */
+  private static void defineAst(String outputDir, String baseName, List<String> types) throws IOException {
+    String path = outputDir + "/" + baseName + ".java";
+    PrintWriter writer = new PrintWriter(path, "UTF-8");
 
-		defineVisitor(writer, baseName, types);
+    writer.println("package kali;");
+    writer.println();
+    writer.println("import kali.Token;");
+    writer.println("import java.util.List;");
+    writer.println();
+    writer.println("abstract class " + baseName + " {");
 
-		// The AST classes.
-		for (String type : types) {
-			String className = type.split(":")[0].trim();
-			String fields = type.split(":")[1].trim();
-			defineType(writer, baseName, className, fields);
-		}
+    defineVisitor(writer, baseName, types);
 
-		//create ovberride accept method
-		writer.println();
-		writer.println(" abstract <R> R accept(Visitor<R> visitor);");
+    // The AST classes.
+    for (String type : types) {
+      String className = type.split(":")[0].trim();
+      String fields = type.split(":")[1].trim();
+      defineType(writer, baseName, className, fields);
+    }
 
-		writer.println("}");
-		writer.close();
-	}
+    // The base accept method for the Visitor pattern.
+    writer.println();
+    writer.println("  abstract <R> R accept(Visitor<R> visitor);");
 
-	private static void defineVisitor(PrintWriter writer, String baseName, List<String> types) {
-		writer.println("  interface Visitor<R> {");
+    writer.println("}");
+    writer.close();
+  }
 
-		for (String type : types) {
-			String typeName = type.split(":")[0].trim();
-			writer.println("    R visit" + typeName + baseName + "(" +
-				typeName + " " + baseName.toLowerCase() + ");");
-		}
+  /**
+   * Generates the Visitor interface within the base class.
+   *
+   * @param writer   The PrintWriter to write to.
+   * @param baseName The base class name (e.g., "Expr").
+   * @param types    The list of types to generate visit methods for.
+   */
+  private static void defineVisitor(PrintWriter writer, String baseName, List<String> types) {
+    writer.println("  interface Visitor<R> {");
 
-		writer.println("  }");
-	}
+    for (String type : types) {
+      String typeName = type.split(":")[0].trim();
+      writer.println("    R visit" + typeName + baseName + "(" +
+        typeName + " " + baseName.toLowerCase() + ");");
+    }
 
-	/**
-	 * to write the abstract syntax class tree... to another file
-	 * @param writer
-	 * @param baseName
-	 * @param className
-	 * @param fieldList
-	 */
-	private static void defineType(
+    writer.println("  }");
+  }
+
+  /**
+   * Generates the subclass for a specific AST node type.
+   *
+   * @param writer    The PrintWriter to write to.
+   * @param baseName  The base class name which this subclass extends.
+   * @param className The name of the subclass/node (e.g., "Binary").
+   * @param fieldList The string representation of fields (e.g., "Expr left, Token operator, Expr right").
+   */
+  private static void defineType(
     PrintWriter writer, String baseName,
     String className, String fieldList) {
     writer.println("  static class " + className + " extends " + baseName + " {");
@@ -105,8 +142,8 @@ public class GenerateAst {
 
     writer.println("    }");
 
-		//Visitor patternoverride
-		writer.println();
+    // Visitor pattern implementation.
+    writer.println();
     writer.println("    @Override");
     writer.println("    <R> R accept(Visitor<R> visitor) {");
     writer.println("      return visitor.visit" + className + baseName + "(this);");
