@@ -29,9 +29,19 @@ public class Parser {
       if (match(TokenType.CLASS)) {
         return classDeclaration();
       }
+
+      //immediate void checking for function declaration
+      if (match(TokenType.TYPE_VOID)){
+        Token type = previous();
+        Token name = consume(TokenType.IDENTIFIER, "Expect name.");
+
+        if (check(TokenType.LEFT_PAREN)) {
+          return functionDeclaration(type, name);
+        }
+      }
       
       //check primitive type
-      if (match(TokenType.TYPE_NUMBER, TokenType.TYPE_STRING, TokenType.TYPE_BOOLEAN)) {
+      if (match(TokenType.TYPE_NUMBER, TokenType.TYPE_STRING, TokenType.TYPE_BOOLEAN, TokenType.TYPE_VOID)) {
         Token type = previous();
         Token name = consume(TokenType.IDENTIFIER, "Expect name.");
 
@@ -46,7 +56,6 @@ public class Parser {
       if (check(TokenType.IDENTIFIER) && checkNext(TokenType.IDENTIFIER)) { 
         Token type = advance();
         Token name = consume(TokenType.IDENTIFIER, "Expect name.");
-
         if (check(TokenType.LEFT_PAREN)) {
           return functionDeclaration(type, name);
         } else {
@@ -77,6 +86,12 @@ public class Parser {
     List<Stmt.Var> fields = new ArrayList<>();
     while (!check(TokenType.RIGHT_BRACE) && !isAtEnd()) {
       //manually derive methodss
+      if (match(TokenType.TYPE_VOID)){
+        Token type = previous();
+        Token memberName = consume(TokenType.IDENTIFIER, "Expect member name.");
+        methods.add((Stmt.Function)functionDeclaration(type, memberName));
+      }
+
       if (match(TokenType.TYPE_NUMBER, TokenType.TYPE_STRING, TokenType.TYPE_BOOLEAN, TokenType.IDENTIFIER)) {
         Token type = previous();
         Token memberName = consume(TokenType.IDENTIFIER, "Expect member name.");
@@ -132,13 +147,19 @@ public class Parser {
   }
 
   private Stmt statement() {
+    //check before declaration
+    if (check(TokenType.IDENTIFIER) && checkNext(TokenType.LEFT_PAREN)) {
+      Token name = advance();
+      error(name, "Function must have a return type (e.g., 'void', 'number', etc.)");
+    }
+
     if (match(TokenType.FOR)) return forStatement();
     if (match(TokenType.IF)) return ifStatement();
     if (match(TokenType.RETURN)) return returnStatement();
     if (match(TokenType.PRINT)) return printStatement();
     if (match(TokenType.WHILE)) return whileStatement();
     if (match(TokenType.LEFT_BRACE)) return new Stmt.Block(block());
-
+    
     return expressionStatement();
   }
 

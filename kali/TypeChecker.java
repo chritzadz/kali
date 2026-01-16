@@ -22,7 +22,7 @@ import kali.Stmt.While;
 
 public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
   private Environment environment = new Environment();
-  private Object currentReturnType = DataType.NIL;
+  private Object currentReturnType = DataType.VOID;
   private String currentSuperClassType = null;
 
   void check(List<Stmt> statements){
@@ -291,6 +291,7 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     //return statement must be the same.
     Token returnTypeToken = function.declaration.type;
     if (returnTypeToken.type == TokenType.TYPE_NUMBER) return DataType.NUMBER;
+    else if (returnTypeToken.type == TokenType.TYPE_VOID) return DataType.VOID;
     else if (returnTypeToken.type == TokenType.TYPE_STRING) return DataType.STRING;
     else if (returnTypeToken.type == TokenType.TYPE_BOOLEAN) return DataType.BOOLEAN;
     else if (returnTypeToken.type == TokenType.IDENTIFIER) {
@@ -317,7 +318,8 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     //since it is a tree-like structure, save the "parent" type to ref
     Object enclosingFunctionType = currentReturnType;
     
-    if (stmt.type.type == TokenType.TYPE_NUMBER) currentReturnType = DataType.NUMBER;
+    if (stmt.type.type == TokenType.TYPE_VOID) currentReturnType = DataType.VOID;
+    else if (stmt.type.type == TokenType.TYPE_NUMBER) currentReturnType = DataType.NUMBER;
     else if (stmt.type.type == TokenType.TYPE_STRING) currentReturnType = DataType.STRING;
     else if (stmt.type.type == TokenType.TYPE_BOOLEAN) currentReturnType = DataType.BOOLEAN;
     else if (stmt.type.type == TokenType.IDENTIFIER) {
