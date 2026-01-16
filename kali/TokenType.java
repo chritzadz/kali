@@ -14,7 +14,7 @@ public enum TokenType {
     IDENTIFIER, STRING, NUMBER, VOID, BOOLEAN, EXTENDS,
 
     // Type Keywords
-    TYPE_NUMBER, TYPE_STRING, TYPE_BOOLEAN,
+    TYPE_NUMBER, TYPE_STRING, TYPE_BOOLEAN, TYPE_VOID,
 
     //Reserved keywords
     AND, CLASS, ELSE, FALSE, FUN, FOR, IF, NIL, OR,

@@ -1,16 +1,5 @@
-class Doughnut {
-  number cook() {
-    print "Fry until golden brown.";
-    return 0;
-  }
+p(){
+  print("test");
 }
 
-class BostonCream extends Doughnut {
-  number cook() {
-    print "Pipe full of custard and coat with chocolate.";
-    return 0;
-  }
-}
-
-Doughnut d = BostonCream();
-d.cook();
+p();
