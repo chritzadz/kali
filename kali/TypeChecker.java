@@ -25,6 +25,10 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
   private Object currentReturnType = DataType.VOID;
   private String currentSuperClassType = null;
 
+  /**
+   * Entry point for type checking. Walks the AST and type-checks each statement.
+   * @param statements List of statements (AST root)
+   */
   void check(List<Stmt> statements){
     try {
       for (Stmt statement : statements) {
@@ -108,6 +112,9 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     return null;
   }
 
+  /**
+   * Checks an assignment expression. Ensures the assigned value matches the variable's type.
+   */
   @Override
   public Object visitAssignExpr(Assign expr) {
     Object value = evaluate(expr.value); // is the value type since this is a type checker
@@ -256,12 +263,11 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     }
 
     if (!(callee instanceof KaliFunction)) {
-      // since the function name will be set as an identifier, making sure that an identifier that have callee == null is just a variable declaration. cannot be called.
       throw new CompilationError(expr.paren, "Can only call functions.");
     }
 
     KaliFunction function = (KaliFunction)callee;
-    //mismatch arity handling
+    //Arity mistmatch handling
     if (expr.arguments.size() != function.declaration.params.size()) {
       throw new CompilationError(expr.paren, "Expected " + function.declaration.params.size() + " arguments but got " + expr.arguments.size() + ".");
     }
@@ -270,7 +276,6 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
         Object argType = evaluate(expr.arguments.get(i));
         Token paramTypeToken = function.declaration.paramTypes.get(i);
         
-        //check dataytype of each parameter to its expected parent.
         Object expectedType = DataType.NIL;
         if (paramTypeToken.type == TokenType.TYPE_NUMBER) expectedType = DataType.NUMBER;
         else if (paramTypeToken.type == TokenType.TYPE_STRING) expectedType = DataType.STRING;
@@ -288,7 +293,7 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
         }
     }
 
-    //return statement must be the same.
+    //Return Statement Type must be the same as the Expected Type
     Token returnTypeToken = function.declaration.type;
     if (returnTypeToken.type == TokenType.TYPE_NUMBER) return DataType.NUMBER;
     else if (returnTypeToken.type == TokenType.TYPE_VOID) return DataType.VOID;
@@ -315,7 +320,6 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
   }
 
   private void checkFunction(Stmt.Function stmt) {
-    //since it is a tree-like structure, save the "parent" type to ref
     Object enclosingFunctionType = currentReturnType;
     
     if (stmt.type.type == TokenType.TYPE_VOID) currentReturnType = DataType.VOID;
@@ -335,7 +339,6 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     this.environment = new Environment(environment);
 
     try {
-        //type checking.
         for (int i = 0; i < stmt.params.size(); i++) {
             Token paramName = stmt.params.get(i);
             Token paramType = stmt.paramTypes.get(i);
@@ -357,7 +360,6 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
 
   @Override
   public Void visitReturnStmt(Stmt.Return stmt) {
-    //handling return statement mismatch
     Object valueType = DataType.NIL;
     if (stmt.value != null) valueType = evaluate(stmt.value);
 
@@ -415,11 +417,11 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
       else if (field.type.type == TokenType.TYPE_STRING) type = DataType.STRING;
       else if (field.type.type == TokenType.TYPE_BOOLEAN) type = DataType.BOOLEAN;
       else if (field.type.type == TokenType.IDENTIFIER) {
-         try {
-            type = environment.get(field.type); 
-         } catch (RuntimeError error) {
-            throw new CompilationError(field.type, "Unknown type.");
-         }
+        try {
+          type = environment.get(field.type); 
+        } catch (RuntimeError error) {
+          throw new CompilationError(field.type, "Unknown type.");
+        }
       }
       fields.put(field.name.lexeme, type);
     }
@@ -427,10 +429,9 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     KaliClass klass = new KaliClass(stmt.name.lexeme, (KaliClass)superclass, methods, fields);
     environment.assign(stmt.name, klass);
 
-    // Create a new scope for the class to define 'this'
     Environment previous = this.environment;
     this.environment = new Environment(environment);
-    this.environment.define("this", klass);
+    this.environment.define("this", klass); //this refers to the KaliInstance
 
     try {
       for (Stmt.Function method : stmt.methods) {
@@ -467,12 +468,6 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
     if (left == DataType.NUMBER && right == DataType.NUMBER) return DataType.NUMBER;
     throw new CompilationError(operator, "Operands must be numbers.");
   }
-
-  // private Object checkStringOperands(Token operator, Object left, Object right) throws CompilationError {
-  //   if (left == DataType.STRING && right == DataType.STRING) return DataType.STRING;
-  //   throw new CompilationError(operator, "Operands must be strings.");
-  // }
-
   private Object checkStringNumberOperands(Token operator, Object left, Object right) throws CompilationError {
     if (left == DataType.STRING && right == DataType.STRING)
       return DataType.STRING;

@@ -6,14 +6,28 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Class to scan and tokenize the source code.
+ * The Scanner (Lexer) for the Kali language.
+ *
+ * Responsible for transforming raw source code (String) into a list of Tokens.
+ * It handles the first phase of the interpreter pipeline: Lexical Analysis.
+ *
+ * Works by iterating through the source character by character (linear scan)
+ * and grouping them into meaningful lexemes (tokens) like keywords, literals, and operators.
  */
 public class Scanner {
+  /** The raw source code to be scanned. */
   private final String source;
-  private int start = 0;
-  private int current = 0;
-  private int line = 1;
+  /** The list of tokens accumulating during the scan. */
   private final List<Token> tokens = new ArrayList<>();
+
+  /** The start index of the lexeme currently being scanned. */
+  private int start = 0;
+  /** The current character index in the source code. */
+  private int current = 0;
+  /** The current line number, used for error reporting. */
+  private int line = 1;
+
+  /** Map of reserved words to their corresponding TokenTypes. */
   private static final Map<String, TokenType> keywords;
 
   static {
@@ -44,16 +58,18 @@ public class Scanner {
   }
 
   /**
-   * Loop thourgh every character. there will be three variables maintained
-   * 1. start -> start of the pointer
-   * 2. current -> current position of the pointer
-   * 3. line -> how many lines
+   * Loops through the entire source code to generate tokens.
+   * Three pointers are maintained to track state:
+   * 1. start -> The beginning index of the current lexeme being scanned.
+   * 2. current -> The current character index being inspected.
+   * 3. line -> The current line number (for error reporting).
    *
-   * will call the scanToken() to evaluate,
-   * @return
+   * Calls scanToken() iteratively to recognize and consume individual tokens.
+   * @return A list of generated Tokens.
    */
   public List<Token> scanTokens(){
     while(!isAtEnd()) {
+      // We are at the beginning of the next lexeme.
       start = current;
       scanToken();
     }
@@ -63,30 +79,9 @@ public class Scanner {
   }
 
   /**
-   * whether the current is at the end or not
-   * @return boolean expression of the current pointer should before the length.
-   */
-  private boolean isAtEnd() {
-    return current >= source.length();
-  }
-
-  private char advance(){
-    return source.charAt(current++);
-  }
-
-  private void addToken(TokenType type){
-    addToken(type, null);
-  }
-
-  private void addToken(TokenType type, Object literal) {
-    String text = source.substring(start, current);
-    tokens.add(new Token(type, text, literal, line));
-  }
-
-
-  /**
-   * For every character seen we advance() which return the current character and advances the pointer
-   * Basically it tokenize in a left-associative way from left to riught of the token which is part of the expression.
+   * Scans a single token by advancing the current character and matching it against known patterns.
+   * If a character could start multiple token types, it checks subsequent characters.
+   * Basically, it tokenizes in a left-associative way, reading from left to right to build an expression.
    */
   private void scanToken() {
     char c = advance();
@@ -119,6 +114,7 @@ public class Scanner {
         break;
       case '/':
         if (match('/')){
+          // A comment goes until the end of the line.
           while(peek() != '\n' && !isAtEnd()) advance();
         } else {
           addToken(TokenType.SLASH);
@@ -127,6 +123,7 @@ public class Scanner {
       case ' ':
       case '\r':
       case '\t':
+        // Ignore whitespace.
         break;
 
       case '\n':
@@ -140,7 +137,6 @@ public class Scanner {
           number();
         }
         else if (isAlpha(c)){
-          //MAXIMAL MUNCH RESERVED KEYWORD TECHNIQUE assume a letter or underscore
           identifier();
         }
         else{
@@ -150,92 +146,125 @@ public class Scanner {
     }
   }
 
-  public boolean isAlpha(char c){
-    return (c >= 'a' && c <= 'z') ||
-          (c >= 'A' && c <= 'Z') ||
-          c == '_';
-  }
+  // --- Token Scanning Methods ---
 
   /**
-   * Assume that _ or any alphabet is a key to identifier.
+   * Scans an identifier or keyword.
+   * Assumes that an underscore (_) or any alphabetic character starts an identifier.
+   * Uses "Maximal Munch" to consume as many alphanumeric characters as possible.
+   * Checks strictly reserved keywords first; if not found, defaults to a user-defined IDENTIFIER.
    */
-  public void identifier() {
+  private void identifier() {
     while(isAlpha(peek()) || isDigit(peek())) advance();
 
-    //check whether it is a reserved keyword or no?
-    // Reserved keyword is later used for later, since Scanner is mainly used for valu expression.
     String text = source.substring(start, current);
     TokenType type = keywords.get(text);
     if (type == null) type = TokenType.IDENTIFIER;
     addToken(type);
   }
 
-  public boolean isDigit(char c){
-    return c >= '0' && c <= '9';
-  }
-
   /**
-   * Maximal munch to consume number always check for floating andcount as number, Here Lox always represent number as a Double until it is all a digit is done ended in space.
+   * Scans a number literal.
+   * Uses "Maximal Munch" to consume the entire number.
+   * Checks for a fractional part (floating point) and counts it as part of the number.
+   * Note: Kali (following Lox) always represents numbers as Doubles internally, regardless of whether they have a decimal point.
    */
-  public void number(){
+  private void number(){
     while (isDigit(peek())) advance();
 
     if (peek() == '.' && isDigit(peekNext())){
       advance();
-
       while (isDigit(peek())) advance();
     }
 
     addToken(TokenType.NUMBER, Double.parseDouble(source.substring(start, current)));
   }
 
-  public char peekNext(){
-    if (current + 1 >= source.length()) return '\0';
-    return source.charAt(current + 1);
-  }
-
   /**
-   * helps check the next character is there is a match with the expected c, then consume, else we revert back.
-   * @param c
-   * @return
+   * Scans a string literal.
+   * This function is called after detecting the opening double-quote (").
+   * It consumes characters until the closing quote is found, handling multiline strings by tracking line breaks.
    */
-  public boolean match(char c){
-    if (source.charAt(current++) == c){
-      return true;
-    } else {
-      current--;
-      return false;
-    }
-  }
-
-  /**
-   * similar to adavnce but does not consume, it merely checks the next character without popping it
-   * @return
-   */
-  public char peek(){
-    if (isAtEnd()) return '\0';
-    return source.charAt(current);
-  }
-
-
-  /**
-   * String is a literal, so this function is called after detecting the char "
-   */
-  public void string(){
-    //this allows multiline string
+  private void string(){
     while(peek() != '"' && !isAtEnd()){
       if (peek() == '\n') line++;
       advance();
     }
 
     if (isAtEnd()){
-      //invalid string
       Kali.error(line, "Unterminated string.");
       return;
     }
 
     advance();
-    String value = source.substring(start+1, current-1); //grab the string up to "
-    addToken(TokenType.STRING, value); //add the value as token type string
+    String value = source.substring(start+1, current-1);
+    addToken(TokenType.STRING, value);
+  }
+
+  // --- Character Helper Methods ---
+
+  /**
+   * Consumes the current character if it matches the expected character.
+   * This is a conditional advance: if the next character matches 'expected', we consume it and return true.
+   * Otherwise, we leave the state unchanged and return false.
+   * Useful for two-character tokens like '!=' or '>='.
+   * @param expected The character to match.
+   * @return true if matched and consumed, false otherwise.
+   */
+  private boolean match(char expected){
+    if (isAtEnd()) return false;
+    if (source.charAt(current) != expected) return false;
+
+    current++;
+    return true;
+  }
+
+  /**
+   * Returns the current character without consuming it (lookahead).
+   * Similar to advance(), but does not increment the 'current' pointer.
+   * Used to check the context of the current scan without altering the state.
+   * @return The current character, or '\0' if at the end of source.
+   */
+  private char peek(){
+    if (isAtEnd()) return '\0';
+    return source.charAt(current);
+  }
+
+  private char peekNext(){
+    if (current + 1 >= source.length()) return '\0';
+    return source.charAt(current + 1);
+  }
+
+  private boolean isAlpha(char c){
+    return (c >= 'a' && c <= 'z') ||
+          (c >= 'A' && c <= 'Z') ||
+          c == '_';
+  }
+
+  private boolean isDigit(char c){
+    return c >= '0' && c <= '9';
+  }
+
+  /**
+   * whether the current is at the end or not
+   * @return boolean expression of the current pointer should before the length.
+   */
+  private boolean isAtEnd() {
+    return current >= source.length();
+  }
+
+  private char advance(){
+    return source.charAt(current++);
+  }
+
+  // --- Token Addition Helpers ---
+
+  private void addToken(TokenType type){
+    addToken(type, null);
+  }
+
+  private void addToken(TokenType type, Object literal) {
+    String text = source.substring(start, current);
+    tokens.add(new Token(type, text, literal, line));
   }
 }
