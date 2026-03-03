@@ -147,12 +147,6 @@ public class Parser {
   }
 
   private Stmt statement() {
-    //check before declaration
-    if (check(TokenType.IDENTIFIER) && checkNext(TokenType.LEFT_PAREN)) {
-      Token name = advance();
-      error(name, "Function must have a return type (e.g., 'void', 'number', etc.)");
-    }
-
     if (match(TokenType.FOR)) return forStatement();
     if (match(TokenType.IF)) return ifStatement();
     if (match(TokenType.RETURN)) return returnStatement();

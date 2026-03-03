@@ -1,5 +1,6 @@
-p(){
+number p(){
   print("test");
+  return 42;
 }
 
-p();
+print(p());

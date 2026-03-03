@@ -352,10 +352,38 @@ public class TypeChecker implements Expr.Visitor<Object>, Stmt.Visitor<Void>  {
         }
 
         executeBlock(stmt.body, this.environment);
+
+        if (currentReturnType != DataType.VOID && !hasReturnStatement(stmt.body)) {
+          throw new CompilationError(stmt.name, "Function '" + stmt.name.lexeme + "' must return a value of type " + stmt.type.lexeme + ".");
+        }
     } finally {
         this.environment = previous;
         currentReturnType = enclosingFunctionType;
     }
+  }
+
+  private boolean hasReturnStatement(List<Stmt> statements) {
+    for (Stmt stmt : statements) {
+      if (stmt instanceof Stmt.Return) return true;
+      if (stmt instanceof Stmt.If) {
+        Stmt.If ifStmt = (Stmt.If) stmt;
+        boolean thenHasReturn = hasReturnInBranch(ifStmt.thenBranch);
+        boolean elseHasReturn = ifStmt.elseBranch != null && hasReturnInBranch(ifStmt.elseBranch);
+        if (thenHasReturn && elseHasReturn) return true;
+      }
+      if (stmt instanceof Stmt.Block) {
+        if (hasReturnStatement(((Stmt.Block) stmt).statements)) return true;
+      }
+    }
+    return false;
+  }
+
+  private boolean hasReturnInBranch(Stmt branch) {
+    if (branch instanceof Stmt.Return) return true;
+    if (branch instanceof Stmt.Block) {
+      return hasReturnStatement(((Stmt.Block) branch).statements);
+    }
+    return false;
   }
 
   @Override
